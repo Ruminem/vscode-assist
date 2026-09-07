@@ -97,32 +97,57 @@ async function ask(step, uri, pos) {
  *
  * @param {vscode.TextDocument} document @param {vscode.Position} pos
  */
-async function byName(document, pos) {
+async function searchSymbols(document, pos) {
   const range = document.getWordRangeAtPosition(pos);
-  if (!range) return [];
+  if (!range) return { word: '', symbols: [] };
   const word = document.getText(range);
-  if (!word) return [];
+  if (!word) return { word: '', symbols: [] };
 
-  let symbols;
   try {
-    symbols = await vscode.commands.executeCommand('vscode.executeWorkspaceSymbolProvider', word);
+    const raw = await vscode.commands.executeCommand(
+      'vscode.executeWorkspaceSymbolProvider',
+      word,
+    );
+    return { word, symbols: (raw || []).filter((symbol) => symbol && symbol.location) };
   } catch {
-    return [];
+    return { word, symbols: [] };
   }
+}
 
-  const out = [];
-  for (const symbol of symbols || []) {
-    if (!symbol || !symbol.location) continue;
-    const name = symbol.name || '';
-    // The index answers with a bare name on some servers and a qualified one on
-    // others. Anything that merely contains the word is a different symbol.
-    if (name !== word && !name.endsWith(`::${word}`)) continue;
-    const qualified =
-      symbol.containerName && !name.includes('::') ? `${symbol.containerName}::${name}` : name;
-    out.push({ kind: 'name', label: qualified, loc: symbol.location });
-    if (out.length >= MAX_BY_NAME) break;
-  }
-  return out;
+/**
+ * Index entries are not bare names. cpptools attaches the signature - the entry
+ * for totalArea comes back as "totalArea(const Shape **, int)" - and other
+ * servers qualify with the class instead. Cut at the first paren and compare
+ * what is left, so both shapes reduce to the same name.
+ * @param {string} raw
+ */
+function bareName(raw) {
+  const cut = raw.indexOf('(');
+  return (cut < 0 ? raw : raw.slice(0, cut)).trim();
+}
+
+/** @param {{name?: string}} symbol @param {string} word */
+function carriesName(symbol, word) {
+  const name = bareName(symbol.name || '');
+  return name === word || name.endsWith(`::${word}`);
+}
+
+/** @param {{name?: string, containerName?: string, location: vscode.Location}} symbol */
+function toNameHit(symbol) {
+  const name = bareName(symbol.name || '');
+  const qualified =
+    symbol.containerName && !name.includes('::') ? `${symbol.containerName}::${name}` : name;
+  return { kind: 'name', label: qualified, loc: symbol.location };
+}
+
+/** @param {vscode.TextDocument} document @param {vscode.Position} pos */
+async function byName(document, pos) {
+  const { word, symbols } = await searchSymbols(document, pos);
+  if (!word) return [];
+  return symbols
+    .filter((symbol) => carriesName(symbol, word))
+    .slice(0, MAX_BY_NAME)
+    .map(toNameHit);
 }
 
 /**
@@ -173,10 +198,17 @@ function where(loc) {
   return `${vscode.workspace.asRelativePath(loc.uri)}:${loc.range.start.line + 1}`;
 }
 
-/** @param {{kind: string, label?: string}} hit */
+/**
+ * Every row reads source-first, so the picker sorts by eye the way it sorts in
+ * code. A provider row has nothing to add after its name - the location column
+ * already says where it landed - while a name row does: two entries from the
+ * index can differ only by which class they belong to, and Shape::area against
+ * Circle::area is the whole distinction being offered.
+ * @param {{kind: string, label?: string}} hit
+ */
 function describe(hit) {
-  const icon = hit.kind === 'name' ? '$(search)' : '$(symbol-method)';
-  return `${icon} ${hit.label || LABELS[hit.kind] || hit.kind}`;
+  if (hit.kind === 'name') return `$(search) By name · ${hit.label}`;
+  return `$(symbol-method) ${LABELS[hit.kind] || hit.kind}`;
 }
 
 /** @param {vscode.Location} loc */
@@ -240,10 +272,15 @@ async function explain() {
   const pos = editor.selection.active;
 
   const steps = Object.keys(PROVIDERS);
-  const answers = await Promise.all([
+  const [search, ...answers] = await Promise.all([
+    searchSymbols(document, pos),
     ...steps.map((step) => ask(step, uri, pos)),
-    byName(document, pos),
   ]);
+  // Kept unfiltered alongside the matches, because "the index found nothing"
+  // and "the filter threw everything away" look identical from the outside and
+  // want opposite fixes.
+  const matched = search.symbols.filter((symbol) => carriesName(symbol, search.word));
+  answers.push(matched.slice(0, MAX_BY_NAME).map(toNameHit));
   const sources = [...steps.map((step) => LABELS[step]), 'By name'];
 
   const items = [];
@@ -261,6 +298,16 @@ async function explain() {
         hit,
       });
     }
+  });
+
+  items.push({
+    label: `$(info) Index: "${search.word}"`,
+    description: `${search.symbols.length} returned, ${matched.length} matched the name`,
+    detail:
+      search.symbols.length > 0
+        ? `returned: ${search.symbols.slice(0, 5).map((symbol) => symbol.name).join('  |  ')}`
+        : 'the workspace symbol index answered nothing at all',
+    hit: null,
   });
 
   const chosen = await vscode.window.showQuickPick(items, {

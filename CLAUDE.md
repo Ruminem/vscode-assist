@@ -15,13 +15,14 @@ cpptools, rust-analyzer, tsserver) 몫임. 이 성질도 깨지 않음 — 깨�
 | 파일 | 역할 |
 |---|---|
 | `extension.js` | 진입점. `features/` 목록을 돌며 명령을 등록함. 그 외 로직 없음 |
-| `features/round-trip.js` | `Alt+G`. provider 체인을 순서대로 물어봄 |
+| `features/round-trip.js` | `Alt+G`. provider를 전부 물어보고, 커서가 이미 있는 자리를 뺀 뒤, 하나면 점프하고 여럿이면 목록을 냄 |
 | `tools/check-keys.js` | 키 충돌 검사기. 런타임 아님 — 바인딩을 **추가하기 전에** 돌림 |
 | `.cache/` | `check-keys`가 받아두는 기본 키맵 세 플랫폼분. gitignore 대상 |
+| `fixtures/round-trip/` | `Alt+G`가 답해야 하는 자리를 한 화면에 모은 C++ 세 파일. 손으로 돌리는 인수 테스트임 — 자체 `README.md`에 다섯 자리와 기대 결과가 있음. VSIX에는 안 들어감 |
 | `NEXT.md` | 세션 인수인계 노트. VSIX에는 안 들어감 |
 
-명령: `assist.roundTrip`
-설정: `assist.keymap.enabled` `assist.roundTrip.chain` `assist.roundTrip.pickWhenAmbiguous`
+명령: `assist.roundTrip` `assist.roundTrip.explain`
+설정: `assist.keymap.enabled` `assist.roundTrip.providers` `assist.roundTrip.searchByName` `assist.roundTrip.pickWhenAmbiguous`
 
 ## 기능을 더하는 비용은 두 갈래임
 

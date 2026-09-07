@@ -10,6 +10,9 @@
 tools/**
 .cache/**
 
+# The C++ files Alt+G is tested against by hand. Development only.
+fixtures/**
+
 # Notes for working on this repository, not for people installing it.
 CLAUDE.md
 NEXT.md
