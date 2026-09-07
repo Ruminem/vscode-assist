@@ -21,7 +21,8 @@
   },
   "contributes": {
     "commands": [
-      { "command": "assist.roundTrip", "title": "Assist: Go to related symbol" }
+      { "command": "assist.roundTrip", "title": "Assist: Go to related symbol" },
+      { "command": "assist.roundTrip.explain", "title": "Assist: Explain what the round trip sees here" }
     ],
     "keybindings": [
       {
@@ -55,21 +56,27 @@
       {
         "title": "Assist: Round Trip",
         "properties": {
-          "assist.roundTrip.chain": {
+          "assist.roundTrip.providers": {
             "type": "array",
-            "default": ["definition", "declaration", "implementation"],
+            "default": ["definition", "implementation", "declaration"],
             "items": {
               "type": "string",
               "enum": ["definition", "declaration", "implementation", "typeDefinition"]
             },
             "uniqueItems": true,
             "order": 0,
-            "markdownDescription": "Which language-server providers `Alt+G` asks, in order. The first one that answers with a location other than the one under the cursor wins - that is what makes the jump a round trip rather than a one-way trip. On a call site `definition` answers immediately; standing on the definition itself it can only point at where you already are, so the next link in the chain takes over and lands you on the declaration.\n\nDrop `implementation` if your project is mostly free functions and the extra query is wasted. Add `typeDefinition` to fall through to the type of the symbol when nothing else answers."
+            "markdownDescription": "Which language-server providers `Alt+G` asks. All of them are asked at once and every answer is collected, minus any that points at the place the cursor already is - that subtraction is what makes the jump a round trip rather than a one-way trip. One answer left is a jump; several is a picker.\n\nThe order here is only a tie-breaker. Answers are sorted by file first: anything outside a header (`.h` `.hpp` `.inl` ...) comes first, so the picker opens on the body. That one test lands on the `.cpp` definition for a plain function and on the override for a virtual one, and header-only code falls through to this order instead.\n\nDrop `implementation` if your project is mostly free functions and the extra query is wasted. Add `typeDefinition` to also offer the type of the symbol."
+          },
+          "assist.roundTrip.searchByName": {
+            "type": "boolean",
+            "default": true,
+            "order": 1,
+            "markdownDescription": "Also look the name under the cursor up in the workspace symbol index, and offer whatever carries that name alongside the providers' answers.\\n\\nThis is on because a language server often answers with exactly one location, and one location cannot be offered as a choice. Microsoft's C/C++ extension is the case this was measured against: it answers a definition with the declaration and a declaration with the definition, one each, and implements no declaration provider at all - so the header and the source never appear together until the index supplies the other side. It also reaches the one place the providers cannot, a member function's own body, where every provider answers with that body and subtracting the cursor's own position leaves nothing.\\n\\nTurn it off if your project is large enough that common names come back by the dozen. Results are capped either way, and anything the providers already found is not repeated."
           },
           "assist.roundTrip.pickWhenAmbiguous": {
             "type": "boolean",
             "default": true,
-            "order": 1,
+            "order": 2,
             "markdownDescription": "When a provider answers with several locations - overloads, or a virtual with many overrides - show a picker. Turn this off to always take the first result and never be interrupted."
           }
         }
