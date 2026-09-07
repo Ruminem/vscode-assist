@@ -81,8 +81,18 @@ Chrome 설정에서 그 단축키를 지워서 해결했다. **①②는 눌러�
   달랐으면 반쯤 짜인 코드가 들어갔다. 그 커밋의 `CLAUDE.md`가 같은 커밋에 든 코드를
   틀리게 설명하고 있던 것도 같은 원인이다(고쳤다).
 
-**막힌 것 — `displayName`이 아직 미정이다.** 지금 `"Assist"`는 자리만 채운 값이다.
-ID `vscode-assist`는 확정이고 문제없지만, **`displayName`에 "VS Assist"나
-"VSCode Assist"는 쓰지 않기로 했다** — Whole Tomato 제품의 공식 VS Code 포팅처럼
-읽힐 여지와 Microsoft 브랜드 가이드라인 양쪽에 걸린다. `"Assist"` 단독은 안전하지만
-마켓 검색에서 묻힌다. **게시 전에 결정할 것.** 지금 바꾸면 `package.json` 한 줄이다.
+**`displayName`을 `"Assist — Navigation Keys"`로 정했다.** 마켓을 훑어보니 **설명형
+이름은 죄다 임자가 있다** — `Code Navigation`은 다른 익스텐션의 이름 전체고, `Waypoint`는
+하필 심볼 검색 익스텐션이 쓰고 있고, `Symbol Navigation`과 `Counterpart`도 비슷한 게
+여럿이다. 반면 `Beeline`·`Boomerang`·`Round Trip`은 비어 있었다. **그런데도 고유명을 안
+고른 이유는 검색이 아니라 일관성이다** — 명령이 `assist.roundTrip`, 설정이 `assist.*`,
+ID가 `vscode-assist`라, 이름만 딴 걸로 바꾸면 설치한 사람이 명령 팔레트에서 엉뚱한
+접두사를 만난다. **검색은 `keywords`가 이미 받고 있다**(`goto definition` `declaration`
+`navigation` `shortcuts` `c++`) — 마켓 검색은 displayName만 읽지 않는다. "이름에
+검색어를 넣어야 한다"는 압력은 생각보다 작다.
+
+`"VS Assist"`나 `"VSCode Assist"`를 안 쓰기로 한 판단은 그대로다 — Whole Tomato의
+Visual Assist는 **실제로 VS Code 마켓에 올라와 있어서**, 공식 포팅으로 읽힐 여지가
+가정이 아니라 실재였다.
+
+**막힌 것 — 없다.**
