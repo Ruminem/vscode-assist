@@ -1,0 +1,71 @@
+{
+  "name": "vscode-round-trip",
+  "displayName": "Round Trip",
+  "description": "One key hops to the definition, and from there back to the declaration. The round trip, on Alt+G.",
+  "version": "0.1.0",
+  "publisher": "Ruminem",
+  "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/Ruminem/vscode-round-trip.git"
+  },
+  "engines": {
+    "vscode": "^1.74.0"
+  },
+  "categories": [
+    "Other"
+  ],
+  "keywords": [
+    "goto definition",
+    "declaration",
+    "implementation",
+    "navigation",
+    "c++"
+  ],
+  "main": "./extension.js",
+  "activationEvents": [],
+  "contributes": {
+    "commands": [
+      {
+        "command": "roundTrip.go",
+        "title": "Round Trip: Go to related symbol"
+      }
+    ],
+    "keybindings": [
+      {
+        "command": "roundTrip.go",
+        "key": "alt+g",
+        "when": "editorTextFocus"
+      }
+    ],
+    "configuration": {
+      "title": "Round Trip",
+      "properties": {
+        "roundTrip.chain": {
+          "type": "array",
+          "default": [
+            "definition",
+            "declaration",
+            "implementation"
+          ],
+          "items": {
+            "type": "string",
+            "enum": [
+              "definition",
+              "declaration",
+              "implementation",
+              "typeDefinition"
+            ]
+          },
+          "uniqueItems": true,
+          "markdownDescription": "Which language-server providers to ask, in order. The first one that answers with a location other than the one under the cursor wins - that is what makes the jump a round trip rather than a one-way trip. On a call site `definition` answers immediately; standing on the definition itself it can only point at where you already are, so the next link in the chain takes over and lands you on the declaration.\n\nDrop `implementation` if your project is mostly free functions and the extra query is wasted. Add `typeDefinition` if you want the key to fall through to the type of the symbol when nothing else answers."
+        },
+        "roundTrip.pickWhenAmbiguous": {
+          "type": "boolean",
+          "default": true,
+          "markdownDescription": "When a provider answers with several locations - overloads, or a virtual with many overrides - show a picker. Turn this off to always take the first result and never be interrupted."
+        }
+      }
+    }
+  }
+}
