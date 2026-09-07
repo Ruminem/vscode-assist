@@ -1,6 +1,6 @@
 {
   "name": "vscode-assist",
-  "displayName": "Assist",
+  "displayName": "Assist — Code Navigation",
   "description": "Navigation shortcuts VS Code does not ship, bound to keys VS Code does not use.",
   "version": "0.1.0",
   "publisher": "Ruminem",
@@ -28,6 +28,11 @@
       {
         "command": "assist.roundTrip",
         "key": "alt+g",
+        "when": "editorTextFocus && editorHasDefinitionProvider && config.assist.keymap.enabled"
+      },
+      {
+        "command": "assist.roundTrip",
+        "key": "alt+d",
         "when": "editorTextFocus && editorHasDefinitionProvider && config.assist.keymap.enabled"
       },
       {
