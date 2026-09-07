@@ -1,71 +1,79 @@
 {
-  "name": "vscode-round-trip",
-  "displayName": "Round Trip",
-  "description": "One key hops to the definition, and from there back to the declaration. The round trip, on Alt+G.",
+  "name": "vscode-assist",
+  "displayName": "Assist",
+  "description": "Navigation shortcuts VS Code does not ship, bound to keys VS Code does not use.",
   "version": "0.1.0",
   "publisher": "Ruminem",
   "license": "MIT",
   "repository": {
     "type": "git",
-    "url": "https://github.com/Ruminem/vscode-round-trip.git"
+    "url": "https://github.com/Ruminem/vscode-assist.git"
   },
   "engines": {
     "vscode": "^1.74.0"
   },
-  "categories": [
-    "Other"
-  ],
-  "keywords": [
-    "goto definition",
-    "declaration",
-    "implementation",
-    "navigation",
-    "c++"
-  ],
+  "categories": ["Other"],
+  "keywords": ["goto definition", "declaration", "navigation", "shortcuts", "c++"],
   "main": "./extension.js",
   "activationEvents": [],
+  "scripts": {
+    "check-keys": "node tools/check-keys.js"
+  },
   "contributes": {
     "commands": [
-      {
-        "command": "roundTrip.go",
-        "title": "Round Trip: Go to related symbol"
-      }
+      { "command": "assist.roundTrip", "title": "Assist: Go to related symbol" }
     ],
     "keybindings": [
       {
-        "command": "roundTrip.go",
+        "command": "assist.roundTrip",
         "key": "alt+g",
-        "when": "editorTextFocus"
+        "when": "editorTextFocus && editorHasDefinitionProvider && config.assist.keymap.enabled"
+      },
+      {
+        "command": "workbench.action.showAllSymbols",
+        "key": "shift+alt+s",
+        "when": "config.assist.keymap.enabled"
+      },
+      {
+        "command": "workbench.action.gotoSymbol",
+        "key": "alt+m",
+        "when": "editorTextFocus && config.assist.keymap.enabled"
       }
     ],
-    "configuration": {
-      "title": "Round Trip",
-      "properties": {
-        "roundTrip.chain": {
-          "type": "array",
-          "default": [
-            "definition",
-            "declaration",
-            "implementation"
-          ],
-          "items": {
-            "type": "string",
-            "enum": [
-              "definition",
-              "declaration",
-              "implementation",
-              "typeDefinition"
-            ]
+    "configuration": [
+      {
+        "title": "Assist",
+        "properties": {
+          "assist.keymap.enabled": {
+            "type": "boolean",
+            "default": true,
+            "order": 0,
+            "markdownDescription": "The master switch for every key this extension binds. Every contributed keybinding carries `config.assist.keymap.enabled` in its `when` clause, so turning this off hands all of them back at once - the commands stay available from the Command Palette and from your own `keybindings.json`.\n\nThis exists because an extension has no way to release a key once it has taken it. `keybindings.json` can remove a rule with a leading `-`, and your rules always win over an extension's, but there is no equivalent an extension can ship. A `when` clause is the only lever on this side of the line, so the switch is built out of one."
+          }
+        }
+      },
+      {
+        "title": "Assist: Round Trip",
+        "properties": {
+          "assist.roundTrip.chain": {
+            "type": "array",
+            "default": ["definition", "declaration", "implementation"],
+            "items": {
+              "type": "string",
+              "enum": ["definition", "declaration", "implementation", "typeDefinition"]
+            },
+            "uniqueItems": true,
+            "order": 0,
+            "markdownDescription": "Which language-server providers `Alt+G` asks, in order. The first one that answers with a location other than the one under the cursor wins - that is what makes the jump a round trip rather than a one-way trip. On a call site `definition` answers immediately; standing on the definition itself it can only point at where you already are, so the next link in the chain takes over and lands you on the declaration.\n\nDrop `implementation` if your project is mostly free functions and the extra query is wasted. Add `typeDefinition` to fall through to the type of the symbol when nothing else answers."
           },
-          "uniqueItems": true,
-          "markdownDescription": "Which language-server providers to ask, in order. The first one that answers with a location other than the one under the cursor wins - that is what makes the jump a round trip rather than a one-way trip. On a call site `definition` answers immediately; standing on the definition itself it can only point at where you already are, so the next link in the chain takes over and lands you on the declaration.\n\nDrop `implementation` if your project is mostly free functions and the extra query is wasted. Add `typeDefinition` if you want the key to fall through to the type of the symbol when nothing else answers."
-        },
-        "roundTrip.pickWhenAmbiguous": {
-          "type": "boolean",
-          "default": true,
-          "markdownDescription": "When a provider answers with several locations - overloads, or a virtual with many overrides - show a picker. Turn this off to always take the first result and never be interrupted."
+          "assist.roundTrip.pickWhenAmbiguous": {
+            "type": "boolean",
+            "default": true,
+            "order": 1,
+            "markdownDescription": "When a provider answers with several locations - overloads, or a virtual with many overrides - show a picker. Turn this off to always take the first result and never be interrupted."
+          }
         }
       }
-    }
+    ]
   }
 }

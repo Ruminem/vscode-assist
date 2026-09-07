@@ -5,6 +5,11 @@
 .vscodeignore
 *.vsix
 
+# tools/check-keys.js runs before a keybinding is added, not at runtime, and
+# .cache/ is the default keymaps it downloads to compare against.
+tools/**
+.cache/**
+
 # Notes for working on this repository, not for people installing it.
 CLAUDE.md
 NEXT.md
