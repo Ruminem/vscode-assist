@@ -74,6 +74,10 @@ README에 붙여 넣을 블록으로만 실을 것.
 ## 관례
 
 - 커밋 메시지는 **무엇을 왜 바꿨는지 서술하는 영어 문장**. 접두사(`feat:`) 안 씀.
+- **릴리스 노트는 전역 규칙(`~/.claude/CLAUDE.md`)을 따름** — 태그마다 변경 내역을 적음.
+  아직 릴리스 경로 자체가 없으니, 만들 때 처음부터 넣을 것. GitHub 자동 노트
+  (`--generate-notes`)에 기대지 말 것 — 머지된 PR 목록이라 main에 직접 커밋하면 비어 버림.
+  직전 태그부터의 커밋 제목을 뽑는 쪽으로 갈 것.
 - **커밋 메시지와 PR 본문에 AI 흔적(`Co-Authored-By` 등)을 붙이지 않음.**
 - **취미 프로젝트임. 주말 단위로 굴러가는 범위를 넘기지 않음.** 이 프로젝트는 특히
   이걸 조심할 것 — "`Alt+G` 하나"에서 우산 확장으로 번지는 데 커밋 두 개밖에 안 걸렸음.
@@ -82,7 +86,10 @@ README에 붙여 넣을 블록으로만 실을 것.
   `keybindings.json`에 손으로 적어도 되는 것들임. 확장은 굳히는 도구지 관문이 아님.
 - **Windows에서만 검증됨.** macOS/Linux는 코드로만 있고 아무도 안 돌려봤음 — 그렇게
   말해야 함.
-- **`displayName`이 아직 미정임.** 지금 `"Assist"`는 자리만 채운 값임. ID
-  `vscode-assist`는 확정. **`"VS Assist"`나 `"VSCode Assist"`는 쓰지 않기로 함** —
+- **`displayName`은 `"Assist — Navigation Keys"`임.** ID `vscode-assist`, 그리고 명령과
+  설정의 `assist.` 접두사에 맞춘 이름임 — 마켓에 안 겹치는 고유명(`Beeline`,
+  `Boomerang`, `Round Trip`)도 비어 있었지만, 설치한 사람이 명령 팔레트에서 이름과
+  다른 접두사를 만나지 않는 쪽을 골랐음. 검색은 `keywords`가 받음 — 마켓 검색은
+  displayName만 읽지 않음. **`"VS Assist"`나 `"VSCode Assist"`는 쓰지 않음** —
   Whole Tomato 제품의 공식 포팅처럼 읽힐 여지와 Microsoft 브랜드 가이드라인 양쪽에
-  걸림. 마켓 게시 전에 정할 것.
+  걸림. 그 제품은 실제로 VS Code 마켓에 올라와 있음.
