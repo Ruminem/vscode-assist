@@ -17,6 +17,9 @@ cpptools, rust-analyzer, tsserver) 몫임. 이 성질도 깨지 않음 — 깨�
 | `extension.js` | 진입점. `features/` 목록을 돌며 명령을 등록함. 그 외 로직 없음 |
 | `features/round-trip.js` | `Alt+G`. provider를 전부 물어보고, 커서가 이미 있는 자리를 뺀 뒤, 하나면 점프하고 여럿이면 목록을 냄 |
 | `tools/check-keys.js` | 키 충돌 검사기. 런타임 아님 — 바인딩을 **추가하기 전에** 돌림 |
+| `tools/release.js` | 태그를 `package.json` 버전에서 만듦. 인자 없이 돌리면 점검만 하고, `--push`면 태그를 만들어 밈. neon-glow에서 가져옴 |
+| `tools/make-icon.js` | `icon.png` 생성기. 의존성 없음. neon-glow 렌더러를 모양 하나로 줄인 것 |
+| `.github/workflows/` | `v*` 태그에서 `release.yml`은 GitHub 릴리스를, `marketplace.yml`은 마켓 게시를 함. 마켓 쪽은 `VSCE_PAT` secret이 있어야 함 |
 | `.cache/` | `check-keys`가 받아두는 기본 키맵 세 플랫폼분. gitignore 대상 |
 | `fixtures/round-trip/` | `Alt+G`가 답해야 하는 자리를 한 화면에 모은 C++ 세 파일. 손으로 돌리는 인수 테스트임 — 자체 `README.md`에 다섯 자리와 기대 결과가 있음. VSIX에는 안 들어감 |
 | `NEXT.md` | 세션 인수인계 노트. VSIX에는 안 들어감 |
@@ -75,9 +78,10 @@ README에 붙여 넣을 블록으로만 실을 것.
 
 - 커밋 메시지는 **무엇을 왜 바꿨는지 서술하는 영어 문장**. 접두사(`feat:`) 안 씀.
 - **릴리스 노트는 전역 규칙(`~/.claude/CLAUDE.md`)을 따름** — 태그마다 변경 내역을 적음.
-  아직 릴리스 경로 자체가 없으니, 만들 때 처음부터 넣을 것. GitHub 자동 노트
-  (`--generate-notes`)에 기대지 말 것 — 머지된 PR 목록이라 main에 직접 커밋하면 비어 버림.
-  직전 태그부터의 커밋 제목을 뽑는 쪽으로 갈 것.
+  `release.yml`이 직전 태그부터의 커밋 제목을 뽑아 붙임. GitHub 자동 노트
+  (`--generate-notes`)만으로는 머지된 PR 목록이라, main에 직접 커밋하는 여기선 비어 버림.
+  **그래서 커밋 제목이 곧 변경 내역임.** 버전만 올리는 커밋은 제목을 `Bump to `로 시작해야
+  목록에서 빠짐.
 - **커밋 메시지와 PR 본문에 AI 흔적(`Co-Authored-By` 등)을 붙이지 않음.**
 - **취미 프로젝트임. 주말 단위로 굴러가는 범위를 넘기지 않음.** 이 프로젝트는 특히
   이걸 조심할 것 — "`Alt+G` 하나"에서 우산 확장으로 번지는 데 커밋 두 개밖에 안 걸렸음.

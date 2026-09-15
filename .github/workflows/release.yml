@@ -1,0 +1,119 @@
+name: Release
+
+# Cut a release by tagging the commit whose package.json carries the version:
+#   node tools/release.js --push
+on:
+  push:
+    tags:
+      - "v*"
+
+permissions:
+  contents: write
+
+jobs:
+  vsix:
+    runs-on: ubuntu-latest
+    steps:
+      # Full history: the changelog below is built from the commits between this
+      # tag and the one before it, and the default shallow clone has neither the
+      # commits nor the tags to find them with.
+      - uses: actions/checkout@v7
+        with:
+          fetch-depth: 0
+
+      # Node 24 rather than the runner default: it is the LTS with the longest
+      # remaining life. Nothing here has dependencies to install, so this only
+      # decides what runs npx.
+      - uses: actions/setup-node@v7
+        with:
+          node-version: "24"
+
+      # A tag that disagrees with package.json still packages, but the VSIX
+      # would install under the old version number. Fail loudly instead.
+      - name: Check the tag against package.json
+        run: |
+          tag="${GITHUB_REF_NAME#v}"
+          pkg="$(node -p 'require("./package.json").version')"
+          if [ "$tag" != "$pkg" ]; then
+            echo "tag is $tag but package.json says $pkg" >&2
+            exit 1
+          fi
+
+      - name: Package
+        run: npx --yes @vscode/vsce@latest package --out "vscode-assist-${GITHUB_REF_NAME#v}.vsix"
+
+      # The changelog, from commits rather than from pull requests.
+      #
+      # --generate-notes builds its list out of merged PRs, and everything here
+      # goes straight to main, so on its own it produces a compare link and
+      # nothing else. Subjects are written as sentences about what and why,
+      # which is exactly what a changelog line wants to be.
+      #
+      # The version bump is dropped: it is the commit that made the tag, not a
+      # change anyone downloads it for.
+      - name: Build the changelog
+        run: |
+          prev="$(git describe --tags --abbrev=0 "$GITHUB_REF_NAME^" 2>/dev/null || true)"
+          if [ -n "$prev" ]; then
+            echo "## Changes since $prev" > changes.md
+          else
+            echo "## Changes" > changes.md
+            prev="$(git rev-list --max-parents=0 HEAD | tail -1)"
+          fi
+          echo "" >> changes.md
+          git log --no-merges --format='- %s' "$prev..$GITHUB_REF_NAME" | grep -v '^- Bump to ' >> changes.md || true
+          echo "" >> changes.md
+          cat changes.md
+
+      # Written with a quoted heredoc so the backticks stay literal, then the
+      # version and the changelog are substituted in.
+      - name: Write the release notes
+        run: |
+          cat > notes.md <<'EOF'
+          Navigation shortcuts VS Code does not ship, bound to keys VS Code does not use.
+
+          Docs: [English](https://github.com/REPOSLUG/blob/TAGNAME/README.md) · [한국어](https://github.com/REPOSLUG/blob/TAGNAME/README.ko.md)
+
+          CHANGELOG
+
+          ## Install
+
+          Search **Assist — Navigation Keys** in the Extensions view, or download
+          `vscode-assist-VERSION.vsix` below and either use `...` → **Install from VSIX**,
+          or:
+
+          ```sh
+          code --install-extension vscode-assist-VERSION.vsix
+          ```
+
+          Verified on Windows only. The macOS and Linux keybindings exist in the
+          manifest but nobody has run them.
+
+          <details>
+          <summary><b>한국어 설치 안내</b></summary>
+
+          확장 뷰에서 **Assist — Navigation Keys**를 검색하거나, 아래
+          `vscode-assist-VERSION.vsix`를 받아 `...` → **VSIX에서 설치**를 누르거나 명령줄로:
+
+          ```sh
+          code --install-extension vscode-assist-VERSION.vsix
+          ```
+
+          Windows에서만 검증됨. macOS·Linux 키 바인딩은 매니페스트에 있지만 아무도 돌려보지 않았음.
+
+          </details>
+          EOF
+          sed -i "s/VERSION/${GITHUB_REF_NAME#v}/g" notes.md
+          sed -i "s|REPOSLUG|$GITHUB_REPOSITORY|g; s|TAGNAME|$GITHUB_REF_NAME|g" notes.md
+          sed -i "/^CHANGELOG$/r changes.md" notes.md
+          sed -i "/^CHANGELOG$/d" notes.md
+
+      - name: Publish the release
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          gh release create "$GITHUB_REF_NAME" \
+            --title "$GITHUB_REF_NAME" \
+            --notes-file notes.md \
+            --generate-notes \
+            "vscode-assist-${GITHUB_REF_NAME#v}.vsix"

@@ -70,16 +70,28 @@ Chrome 설정에서 그 단축키를 지워서 해결했다. **①②는 눌러�
 — `vsce ls`로 VSIX에 안 들어가는 것 확인했다. ④ `check-keys --refresh`는 만들 게
 없었다(위 참조).
 
+**9/15에 한 것.** ① `Alt+D` 실기 확인 — 된다. ② 목록을 QuickPick 대신 **코드 액션
+메뉴**로 띄워서 커서 자리에 뜨게 했다. QuickPick은 위치를 못 정해서 늘 창 위쪽에 뜨고,
+VS Code가 커서에 여는 목록은 코드 액션 메뉴뿐이다. 대신 타이핑 필터가 없고 "추가 작업..."
+제목이 붙는다. ③ 릴리스 경로를 neon-glow에서 가져왔다 — `tools/release.js`, `release.yml`
+(더블클릭 설치 번들은 뺌), `marketplace.yml`. ④ `icon.png`와 생성기 `tools/make-icon.js`.
+⑤ **로컬에 VSIX로 설치했다.** 그 전엔 F5 창 밖에서 설치된 적이 없어서 평소 창에서
+`Alt+G`가 안 먹었다.
+
 **다음 할 것**
-- **`Alt+D`를 실제로 한 번 눌러볼 것.** `check-keys`는 층 ③만 보고 통과시켰다.
-  전역 핫키(①)와 메뉴 니모닉(②)에 안 걸리는지는 **눌러봐야만 안다** — `Alt+G`가
-  바로 그 함정이었다. 지면 대체 후보는 `alt+b i j q u x y`가 비어 있다.
-- **아이콘(`icon.png`), 릴리스 워크플로, `.github/`.** neon-glow의 `tools/release.js`와
-  `.github/workflows/`를 그대로 가져다 쓸 수 있는지 볼 것.
-- **한 저장소에 Claude 세션 하나만 붙일 것.** 이번에 다른 세션이 커밋하면서 여기서
+- **내 C++ 프로젝트에서 하루 쓰기.** "끝났다"의 뒷절반이고, 이게 릴리스 조건이다.
+  코드를 고치면 설치본은 옛날 것으로 남는다 — `npx @vscode/vsce package` 후
+  `code --install-extension <vsix> --force`로 다시 설치할 것.
+- **`VSCE_PAT` 등록.** `gh secret set VSCE_PAT --repo Ruminem/vscode-assist`.
+  neon-glow에 등록된 값은 GitHub에서 다시 읽을 수 없다. 토큰 값을 따로 갖고 있어야
+  하고, 없으면 Azure DevOps에서 새로 발급한다(Marketplace: Manage, All accessible
+  organizations).
+- **저장소 Public 전환 → 태그.** 비공개인 채로 게시하면 마켓 페이지의 저장소 링크와
+  README의 `README.ko.md` 링크가 404다 — vsce가 상대 링크를 GitHub URL로 바꿔 넣는다.
+  순서: Public 전환 → `node tools/release.js`(점검) → `node tools/release.js --push`.
+- **한 저장소에 Claude 세션 하나만 붙일 것.** 9/7에 다른 세션이 커밋하면서 여기서
   편집 중이던 파일 둘을 자기 커밋에 쓸어담았다. 결과는 멀쩡했지만 타이밍이 조금만
-  달랐으면 반쯤 짜인 코드가 들어갔다. 그 커밋의 `CLAUDE.md`가 같은 커밋에 든 코드를
-  틀리게 설명하고 있던 것도 같은 원인이다(고쳤다).
+  달랐으면 반쯤 짜인 코드가 들어갔다.
 
 **`displayName`을 `"Assist — Navigation Keys"`로 정했다.** 마켓을 훑어보니 **설명형
 이름은 죄다 임자가 있다** — `Code Navigation`은 다른 익스텐션의 이름 전체고, `Waypoint`는

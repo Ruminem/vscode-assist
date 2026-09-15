@@ -1,0 +1,126 @@
+name: Marketplace
+
+# Publish to the Visual Studio Marketplace, on the same tag that cuts a release.
+#
+# Kept in its own file rather than added as a job to release.yml, because the
+# two fail in ways that want different answers: a release asset can be rebuilt
+# and re-uploaded, while a version that has reached the Marketplace can never be
+# published again under that number. One red job should not make the other look
+# unfinished, and this one has to be re-runnable on its own.
+on:
+  push:
+    tags:
+      - "v*"
+  # Publishing is the step most likely to fail on something outside the code -
+  # a personal access token expires after a year, by which time the tag is long
+  # since pushed. This allows the same tag to be retried without moving it.
+  workflow_dispatch:
+
+# Nothing here writes to the repository; the release workflow is what creates
+# releases. Marketplace credentials come from the secret below, not the token.
+permissions:
+  contents: read
+
+jobs:
+  publish:
+    runs-on: ubuntu-latest
+    # Three tries of a step that can hang for three minutes each, with a pause
+    # between, is the longest this should ever take.
+    timeout-minutes: 25
+    steps:
+      - uses: actions/checkout@v7
+
+      # Node 24 rather than the runner default: it is the LTS with the longest
+      # remaining life, and this repository is touched rarely enough that the
+      # next bump should be far away. Nothing here has dependencies to install,
+      # so this only decides what runs npx.
+      - uses: actions/setup-node@v7
+        with:
+          node-version: "24"
+
+      # Without this the run dies on a 401 from the Marketplace, which reads
+      # like a rejected token rather than an absent one.
+      - name: Check the token is set
+        env:
+          VSCE_PAT: ${{ secrets.VSCE_PAT }}
+        run: |
+          if [ -z "$VSCE_PAT" ]; then
+            echo "VSCE_PAT is not set." >&2
+            echo "Add it under Settings > Secrets and variables > Actions > New repository secret." >&2
+            echo "It is an Azure DevOps personal access token scoped to Marketplace: Manage," >&2
+            echo "issued for All accessible organizations." >&2
+            exit 1
+          fi
+
+      # A token that is not accepted does not come back as 401. The gallery
+      # answers an unauthenticated request with a 302 to a sign-in page, and the
+      # client follows it into something that never finishes, so a bad token
+      # looks exactly like the Marketplace being down: three minutes of nothing
+      # and "Request timeout: /_apis/gallery". verify-pat says which it is, in
+      # seconds, before anything is uploaded.
+      #
+      # Tried three times, a minute apart, because the Marketplace side comes and
+      # goes: neon-glow's v0.14.1, v0.14.2 and v0.16.2 all died here on "Request timeout:
+      # /_apis/securityroles" after three minutes, and v0.16.2 went through in
+      # 27 seconds when the same run was started again six minutes later. A
+      # token that is really rejected fails all three and costs ten minutes
+      # instead of three, which is the cheaper mistake.
+      - name: Check the token still works
+        env:
+          VSCE_PAT: ${{ secrets.VSCE_PAT }}
+        run: |
+          for try in 1 2 3; do
+            if npx --yes @vscode/vsce@latest verify-pat Ruminem; then exit 0; fi
+            echo "verify-pat failed (try $try of 3)" >&2
+            if [ "$try" -lt 3 ]; then sleep 60; fi
+          done
+          exit 1
+
+      # The Marketplace takes the version from package.json rather than from the
+      # tag, so a disagreement publishes a number nobody asked for - and that one
+      # cannot be taken back. Refuse before anything is uploaded.
+      - name: Check the tag against package.json
+        run: |
+          if [ "$GITHUB_REF_TYPE" != "tag" ]; then
+            echo "Run this from a tag, not from $GITHUB_REF_NAME." >&2
+            exit 1
+          fi
+          tag="${GITHUB_REF_NAME#v}"
+          pkg="$(node -p 'require("./package.json").version')"
+          if [ "$tag" != "$pkg" ]; then
+            echo "tag is $tag but package.json says $pkg" >&2
+            exit 1
+          fi
+
+      - name: Package
+        run: npx --yes @vscode/vsce@latest package --out "vscode-assist-${GITHUB_REF_NAME#v}.vsix"
+
+      # --packagePath publishes the file just built instead of packaging a second
+      # time, so what reaches the Marketplace is the artifact this run inspected
+      # rather than a rebuild of it.
+      #
+      # Retried for the same reason as verify-pat. A try that timed out on this
+      # side may still have landed on theirs, so the next try can be told the
+      # version already exists - which means the job is done, not failed.
+      #
+      # shell: bash is what turns on pipefail. Without it the tee below would
+      # hand back its own success whatever vsce did, and a failed publish would
+      # go green.
+      - name: Publish
+        shell: bash
+        env:
+          VSCE_PAT: ${{ secrets.VSCE_PAT }}
+        run: |
+          vsix="vscode-assist-${GITHUB_REF_NAME#v}.vsix"
+          for try in 1 2 3; do
+            if npx --yes @vscode/vsce@latest publish --packagePath "$vsix" 2>&1 | tee publish.log; then
+              exit 0
+            fi
+            if grep -qi "already exists" publish.log; then
+              echo "This version is already on the Marketplace; nothing left to do."
+              exit 0
+            fi
+            echo "publish failed (try $try of 3)" >&2
+            if [ "$try" -lt 3 ]; then sleep 60; fi
+          done
+          exit 1

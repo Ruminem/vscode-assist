@@ -5,6 +5,7 @@
   "version": "0.1.0",
   "publisher": "Ruminem",
   "license": "MIT",
+  "icon": "icon.png",
   "repository": {
     "type": "git",
     "url": "https://github.com/Ruminem/vscode-assist.git"
@@ -17,7 +18,9 @@
   "main": "./extension.js",
   "activationEvents": [],
   "scripts": {
-    "check-keys": "node tools/check-keys.js"
+    "check-keys": "node tools/check-keys.js",
+    "icon": "node tools/make-icon.js",
+    "release": "node tools/release.js"
   },
   "contributes": {
     "commands": [
