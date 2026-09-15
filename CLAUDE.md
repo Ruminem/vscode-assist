@@ -104,3 +104,32 @@ README에 붙여 넣을 블록으로만 실을 것.
   displayName만 읽지 않음. **`"VS Assist"`나 `"VSCode Assist"`는 쓰지 않음** —
   Whole Tomato 제품의 공식 포팅처럼 읽힐 여지와 Microsoft 브랜드 가이드라인 양쪽에
   걸림. 그 제품은 실제로 VS Code 마켓에 올라와 있음.
+
+## 저작권·상표 점검 — 작업을 끝낼 때마다
+
+Visual Assist를 쓰던 손버릇을 옮기려고 만든 확장이라, 무료 배포라도 **베낀 것처럼 보이면
+안 됨.** 그래서 이 프로젝트에서는 세션에서 작업을 끝낼 때마다 아래를 점검하고, 결과를
+사용자에게 짧게 보고함. 문제가 없어도 "점검함, 걸린 것 없음"이라고 말함.
+
+1. **배포 파일에 VA 이름이 없는지.** `Visual Assist`, `Whole Tomato`, `VAssistX`. 꼭
+   써야 하면 호환을 설명하는 용도로만 쓰고 "Whole Tomato와 무관함"을 같이 적음. 이름·
+   아이콘·설명 어디서도 공식 포팅처럼 읽히면 안 됨.
+2. **VA의 기능 이름과 메뉴 문구를 그대로 쓰지 않는지.** `Open File in Solution`,
+   `Find Symbol in Solution` 같은 것. 명령 제목·설정 설명·README 문장은 이 확장이
+   실제로 하는 일을 우리 말로 새로 씀. VA 문서를 옮겨 적지 않음.
+3. **VA의 코드·아이콘·스크린샷·문서가 저장소에 없는지.** 외부 코드를 가져오면 출처와
+   라이선스를 주석에 남김(`tools/make-icon.js`처럼).
+4. **`dependencies`가 비어 있는지.** 생기면 그 라이선스를 확인함.
+
+점검 명령 — 배포 파일은 `npx @vscode/vsce ls`가 보여주는 것들임:
+
+```bash
+grep -n -i -E "visual ?assist|whole ?tomato|vassistx" extension.js package.json README.md README.ko.md features/*.js
+grep -n -i -E "in solution|goto related|go to related" extension.js package.json README.md README.ko.md features/*.js
+```
+
+**배경 — 무엇이 위험하고 무엇이 아닌지.** 단축키 배치나 "선언부↔정의부 왕복" 같은
+기능 아이디어는 저작권 보호 대상이 아님(저작권법 제101조의2는 프로그램의 규약·해법을
+보호에서 뺌. 미국은 Lotus v. Borland가 메뉴 명령 체계를 조작 방법으로 봄). 위험은
+**표현을 베끼는 것**(코드·문서 문장·아이콘)과 **상표를 제휴처럼 쓰는 것**에 있음. 이 점검은
+그 둘만 봄. 법률 자문이 아님 — 판단이 애매하면 사용자에게 그렇다고 말할 것.

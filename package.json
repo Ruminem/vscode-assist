@@ -24,7 +24,7 @@
   },
   "contributes": {
     "commands": [
-      { "command": "assist.roundTrip", "title": "Assist: Go to related symbol" },
+      { "command": "assist.roundTrip", "title": "Assist: Round trip between declaration and definition" },
       { "command": "assist.roundTrip.explain", "title": "Assist: Explain what the round trip sees here" }
     ],
     "keybindings": [
