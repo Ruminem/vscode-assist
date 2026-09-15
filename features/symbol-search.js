@@ -170,7 +170,9 @@ function fuzzyButton(on) {
     // The icon changes as well as the toggle state: toggle only exists on newer
     // VS Code, and on older ones the icon is the only thing that shows it.
     iconPath: new vscode.ThemeIcon(on ? 'filter-filled' : 'filter'),
-    tooltip: on ? 'Fuzzy match: on (letters in order, gaps allowed)' : 'Fuzzy match: off (letters adjacent)',
+    tooltip: on
+      ? vscode.l10n.t('Fuzzy match: on (letters in order, gaps allowed)')
+      : vscode.l10n.t('Fuzzy match: off (letters adjacent)'),
     toggle: { checked: on },
   };
 }
@@ -179,7 +181,7 @@ async function searchSymbols() {
   let fuzzy = vscode.workspace.getConfiguration('assist.symbolSearch').get('fuzzy', true);
 
   const picker = vscode.window.createQuickPick();
-  picker.placeholder = 'Search symbols in the workspace';
+  picker.placeholder = vscode.l10n.t('Search symbols in the workspace');
   picker.matchOnDescription = false;
   picker.matchOnDetail = false;
   picker.buttons = [fuzzyButton(fuzzy)];

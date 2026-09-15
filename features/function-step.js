@@ -71,8 +71,13 @@ function step(direction) {
         : all.filter((p) => p.line < line).pop();
 
     if (!target) {
-      const which = direction > 0 ? 'next' : 'previous';
-      vscode.window.setStatusBarMessage(`$(circle-slash) No ${which} function in this file`, 2000);
+      // Two whole sentences rather than one with the direction filled in: word
+      // order is not the same in every language that gets a translation.
+      const message =
+        direction > 0
+          ? vscode.l10n.t('No next function in this file')
+          : vscode.l10n.t('No previous function in this file');
+      vscode.window.setStatusBarMessage(`$(circle-slash) ${message}`, 2000);
       return;
     }
 

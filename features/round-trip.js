@@ -12,11 +12,13 @@ const PROVIDERS = {
   typeDefinition: 'vscode.executeTypeDefinitionProvider',
 };
 
+// Translated through vscode.l10n; the Korean terms follow VS Code's own Korean
+// language pack, so the menu says what VS Code's Go to menu says.
 const LABELS = {
-  definition: 'Definition',
-  declaration: 'Declaration',
-  implementation: 'Implementation',
-  typeDefinition: 'Type definition',
+  definition: vscode.l10n.t('Definition'),
+  declaration: vscode.l10n.t('Declaration'),
+  implementation: vscode.l10n.t('Implementation'),
+  typeDefinition: vscode.l10n.t('Type definition'),
 };
 
 // Used only to sort, never to decide what a file is. Anything that does not
@@ -207,7 +209,8 @@ function where(loc) {
  * @param {{kind: string, label?: string, loc: vscode.Location}} hit
  */
 function describe(hit) {
-  const source = hit.kind === 'name' ? `By name · ${hit.label}` : LABELS[hit.kind] || hit.kind;
+  const source =
+    hit.kind === 'name' ? vscode.l10n.t('By name · {0}', hit.label) : LABELS[hit.kind] || hit.kind;
   return `${source}  —  ${where(hit.loc)}`;
 }
 
@@ -274,7 +277,10 @@ async function roundTrip() {
 
   const targets = ranked(await gather(editor.document, pos, options), options.steps);
   if (targets.length === 0) {
-    vscode.window.setStatusBarMessage('$(circle-slash) Round trip: nowhere to go from here', 2000);
+    vscode.window.setStatusBarMessage(
+      `$(circle-slash) ${vscode.l10n.t('Round trip: nowhere to go from here')}`,
+      2000,
+    );
     return;
   }
 
@@ -308,12 +314,12 @@ async function explain() {
   // want opposite fixes.
   const matched = search.symbols.filter((symbol) => carriesName(symbol, search.word));
   answers.push(matched.slice(0, MAX_BY_NAME).map(toNameHit));
-  const sources = [...steps.map((step) => LABELS[step]), 'By name'];
+  const sources = [...steps.map((step) => LABELS[step]), vscode.l10n.t('By name')];
 
   const items = [];
   answers.forEach((hits, i) => {
     if (hits.length === 0) {
-      items.push({ label: `$(dash) ${sources[i]}`, description: 'no answer', hit: null });
+      items.push({ label: `$(dash) ${sources[i]}`, description: vscode.l10n.t('no answer'), hit: null });
       return;
     }
     for (const hit of hits) {
@@ -321,24 +327,24 @@ async function explain() {
       items.push({
         label: `${here ? '$(circle-slash)' : '$(arrow-right)'} ${sources[i]}`,
         description: `${where(hit.loc)}${hit.label ? `  ${hit.label}` : ''}`,
-        detail: here ? 'dropped: this is where the cursor already is' : undefined,
+        detail: here ? vscode.l10n.t('dropped: this is where the cursor already is') : undefined,
         hit,
       });
     }
   });
 
   items.push({
-    label: `$(info) Index: "${search.word}"`,
-    description: `${search.symbols.length} returned, ${matched.length} matched the name`,
+    label: `$(info) ${vscode.l10n.t('Index: "{0}"', search.word)}`,
+    description: vscode.l10n.t('{0} returned, {1} matched the name', search.symbols.length, matched.length),
     detail:
       search.symbols.length > 0
-        ? `returned: ${search.symbols.slice(0, 5).map((symbol) => symbol.name).join('  |  ')}`
-        : 'the workspace symbol index answered nothing at all',
+        ? vscode.l10n.t('returned: {0}', search.symbols.slice(0, 5).map((symbol) => symbol.name).join('  |  '))
+        : vscode.l10n.t('the workspace symbol index answered nothing at all'),
     hit: null,
   });
 
   const chosen = await vscode.window.showQuickPick(items, {
-    placeHolder: `Round trip at ${where(new vscode.Location(uri, pos))} - what each source answered`,
+    placeHolder: vscode.l10n.t('Round trip at {0} - what each source answered', where(new vscode.Location(uri, pos))),
     matchOnDescription: true,
   });
   if (chosen && chosen.hit) await reveal(chosen.hit.loc);

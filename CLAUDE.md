@@ -24,6 +24,8 @@ cpptools, rust-analyzer, tsserver) 몫임. 이 성질도 깨지 않음 — 깨�
 | `.github/workflows/` | `v*` 태그에서 `release.yml`은 GitHub 릴리스를, `marketplace.yml`은 마켓 게시를 함. 마켓 쪽은 `VSCE_PAT` secret이 있어야 함 |
 | `.cache/` | `check-keys`가 받아두는 기본 키맵 세 플랫폼분. gitignore 대상 |
 | `fixtures/round-trip/` | `Alt+G`가 답해야 하는 자리를 한 화면에 모은 C++ 세 파일. 손으로 돌리는 인수 테스트임 — 자체 `README.md`에 다섯 자리와 기대 결과가 있음. VSIX에는 안 들어감 |
+| `l10n/bundle.l10n.ko.json` | 화면 문구의 한국어 번역. 키는 영어 원문 그대로임. VS Code 표시 언어가 한국어면 쓰이고, 아니면 원문이 나옴 |
+| `package.nls.json` / `package.nls.ko.json` | 명령 제목과 설정 설명의 영어 원문과 한국어. `package.json`에는 `%키%`만 있음 |
 | `NEXT.md` | 세션 인수인계 노트. VSIX에는 안 들어감 |
 
 명령: `assist.roundTrip` `assist.roundTrip.explain` `assist.nextFunction` `assist.previousFunction` `assist.searchSymbols`
@@ -86,9 +88,19 @@ README에 붙여 넣을 블록으로만 실을 것.
 - **`README.ko.md`와 이 파일은 음슴체(`-음`/`-함`)로 씀.** 해라체(`-한다`, `-이다`,
   `-없다`)로 쓰지 않음. neon-glow와 같은 규칙임.
 - 두 README는 문단이 서로 대응하도록 유지함. 한쪽만 고치면 대응이 흐트러짐.
+- **화면에 나오는 문구는 `vscode.l10n.t()`로 감싸고, 같은 커밋에서 `l10n/bundle.l10n.ko.json`에
+  한국어를 넣음.** 키는 영어 원문과 글자까지 같아야 함 — 다르면 조용히 영어가 나옴. 방향이나
+  수량을 끼워 넣는 대신 문장을 통째로 따로 둠(어순이 언어마다 달라서). 아이콘 표기(`$(...)`)는
+  번역문 밖에 둠. **용어는 VS Code 한국어 언어팩을 따름** — 정의·선언·구현·형식 정의, symbol은
+  기호, workspace는 작업 영역, fuzzy는 유사 항목 일치, provider는 공급자.
+- **명령 제목과 설정 설명은 `package.json`에 `%키%`로만 있음.** 영어 원문은 `package.nls.json`,
+  한국어는 `package.nls.ko.json`. 둘 중 하나만 고치면 한쪽 언어만 낡음 — 같은 커밋에서 같이
+  고칠 것. 설정 설명은 VS Code 한국어 설정 화면처럼 합니다체로 씀. 이 파일들을 스크립트로 쓸
+  때 줄바꿈을 `\n` 글자로 넣지 않게 조심 — v0.1.0의 `searchByName` 설명이 그렇게 `\n\n`을
+  글자 그대로 보여주고 있었음.
 - **기능을 더하거나 빼면 문서가 같은 커밋에서 따라감.** 설정이나 키 하나에 딸린 자리가
   넷임:
-  1. `package.json`의 설정 스키마(`markdownDescription`)
+  1. 설정 스키마 — `package.json`의 항목과, `package.nls.json`·`package.nls.ko.json`의 설명
   2. 두 README의 **표** 한 줄씩
   3. 두 README의 **산문** — 그게 무엇이고 왜 그 모양인지
   4. 이 파일 위쪽의 명령·설정 목록

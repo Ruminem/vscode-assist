@@ -16,6 +16,7 @@
   "categories": ["Other"],
   "keywords": ["goto definition", "declaration", "navigation", "shortcuts", "c++"],
   "main": "./extension.js",
+  "l10n": "./l10n",
   "activationEvents": [],
   "scripts": {
     "check-keys": "node tools/check-keys.js",
@@ -24,11 +25,11 @@
   },
   "contributes": {
     "commands": [
-      { "command": "assist.roundTrip", "title": "Assist: Round trip between declaration and definition" },
-      { "command": "assist.roundTrip.explain", "title": "Assist: Explain what the round trip sees here" },
-      { "command": "assist.nextFunction", "title": "Assist: Next function in this file" },
-      { "command": "assist.previousFunction", "title": "Assist: Previous function in this file" },
-      { "command": "assist.searchSymbols", "title": "Assist: Search symbols in the workspace" }
+      { "command": "assist.roundTrip", "title": "%command.roundTrip.title%" },
+      { "command": "assist.roundTrip.explain", "title": "%command.explain.title%" },
+      { "command": "assist.nextFunction", "title": "%command.nextFunction.title%" },
+      { "command": "assist.previousFunction", "title": "%command.previousFunction.title%" },
+      { "command": "assist.searchSymbols", "title": "%command.searchSymbols.title%" }
     ],
     "keybindings": [
       {
@@ -74,18 +75,18 @@
     ],
     "configuration": [
       {
-        "title": "Assist",
+        "title": "%config.title%",
         "properties": {
           "assist.keymap.enabled": {
             "type": "boolean",
             "default": true,
             "order": 0,
-            "markdownDescription": "The master switch for every key this extension binds. Every contributed keybinding carries `config.assist.keymap.enabled` in its `when` clause, so turning this off hands all of them back at once - the commands stay available from the Command Palette and from your own `keybindings.json`.\n\nThis exists because an extension has no way to release a key once it has taken it. `keybindings.json` can remove a rule with a leading `-`, and your rules always win over an extension's, but there is no equivalent an extension can ship. A `when` clause is the only lever on this side of the line, so the switch is built out of one."
+            "markdownDescription": "%config.keymap.enabled%"
           }
         }
       },
       {
-        "title": "Assist: Round Trip",
+        "title": "%config.roundTrip.title%",
         "properties": {
           "assist.roundTrip.providers": {
             "type": "array",
@@ -96,29 +97,29 @@
             },
             "uniqueItems": true,
             "order": 0,
-            "markdownDescription": "Which language-server providers `Alt+G` asks. All of them are asked at once and every answer is collected, minus any that points at the place the cursor already is - that subtraction is what makes the jump a round trip rather than a one-way trip. One answer left is a jump; several is a picker.\n\nThe order here is only a tie-breaker. Answers are sorted by file first: anything outside a header (`.h` `.hpp` `.inl` ...) comes first, so the picker opens on the body. That one test lands on the `.cpp` definition for a plain function and on the override for a virtual one, and header-only code falls through to this order instead.\n\nDrop `implementation` if your project is mostly free functions and the extra query is wasted. Add `typeDefinition` to also offer the type of the symbol."
+            "markdownDescription": "%config.roundTrip.providers%"
           },
           "assist.roundTrip.searchByName": {
             "type": "boolean",
             "default": true,
             "order": 1,
-            "markdownDescription": "Also look the name under the cursor up in the workspace symbol index, and offer whatever carries that name alongside the providers' answers.\\n\\nThis is on because a language server often answers with exactly one location, and one location cannot be offered as a choice. Microsoft's C/C++ extension is the case this was measured against: it answers a definition with the declaration and a declaration with the definition, one each, and implements no declaration provider at all - so the header and the source never appear together until the index supplies the other side. It also reaches the one place the providers cannot, a member function's own body, where every provider answers with that body and subtracting the cursor's own position leaves nothing.\\n\\nTurn it off if your project is large enough that common names come back by the dozen. Results are capped either way, and anything the providers already found is not repeated."
+            "markdownDescription": "%config.roundTrip.searchByName%"
           },
           "assist.roundTrip.pickWhenAmbiguous": {
             "type": "boolean",
             "default": true,
             "order": 2,
-            "markdownDescription": "When a provider answers with several locations - overloads, or a virtual with many overrides - show a picker. Turn this off to always take the first result and never be interrupted."
+            "markdownDescription": "%config.roundTrip.pickWhenAmbiguous%"
           }
         }
       },
       {
-        "title": "Assist: Symbol Search",
+        "title": "%config.symbolSearch.title%",
         "properties": {
           "assist.symbolSearch.fuzzy": {
             "type": "boolean",
             "default": true,
-            "markdownDescription": "Whether `Shift+Alt+S` starts in fuzzy mode, where the letters of the query only have to appear in order: `ce` finds `Circle`. The button in the search box switches it for that one search.\n\nThe matching is done by this extension rather than by the language server, because clangd only matches at the start of a name or of a word inside it, and answers `ce` with nothing. Candidates come from the full list the server hands over for an empty query plus its answer to the query itself. clangd caps each list at 100 unless it is started with `--limit-results=0`, so in a large project a name matched only in the middle can be missed."
+            "markdownDescription": "%config.symbolSearch.fuzzy%"
           }
         }
       }
