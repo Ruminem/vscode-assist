@@ -39,8 +39,9 @@ jobs:
             exit 1
           fi
 
+      # vsce is held at major 3, the same as marketplace.yml - see the note there.
       - name: Package
-        run: npx --yes @vscode/vsce@latest package --out "vscode-assist-${GITHUB_REF_NAME#v}.vsix"
+        run: npx --yes @vscode/vsce@3 package --out "vscode-assist-${GITHUB_REF_NAME#v}.vsix"
 
       # The changelog, from commits rather than from pull requests.
       #
