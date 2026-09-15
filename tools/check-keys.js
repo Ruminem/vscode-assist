@@ -110,25 +110,44 @@ async function main() {
         (b.when || '').endsWith(rule.when || '')
     );
 
+  // A default rule is only an alias when the same platform binds its command,
+  // under the same when clause, to another key as well. Taking this key then
+  // costs nothing: the command is still one keystroke away on the other.
+  // Platforms are judged apart - Ctrl+Shift+Up is an alias of Shift+Up on
+  // Windows and a multi-cursor command of its own on Linux.
+  const isAlias = (platform, key, rule) =>
+    defaults[platform].some(
+      (other) =>
+        other.command === rule.command &&
+        (other.when || '') === (rule.when || '') &&
+        other.key &&
+        normalize(other.key) !== key
+    );
+
   let collisions = 0;
   for (const { key, label } of targets) {
     const hits = [];
+    const aliases = [];
     let yields = false;
     for (const platform of PLATFORMS) {
       for (const rule of defaults[platform]) {
         if (!rule.key || normalize(rule.key) !== key) continue;
         if (handedBack(key, rule)) yields = true;
+        else if (isAlias(platform, key, rule)) aliases.push(`${platform.padEnd(8)} ${rule.command}`);
         else hits.push({ platform, rule });
       }
     }
 
     if (hits.length === 0) {
-      console.log(`  ${yields ? 'yields' : 'free  '} ${key.padEnd(16)} ${label}`);
+      const status = yields ? 'yields' : aliases.length ? 'alias ' : 'free  ';
+      console.log(`  ${status} ${key.padEnd(16)} ${label}`);
+      for (const a of aliases) console.log(`         ${a}  (alias: also bound to another key)`);
       continue;
     }
 
     collisions += 1;
     console.log(`  TAKEN  ${key.padEnd(16)} ${label}`);
+    for (const a of aliases) console.log(`         ${a}  (alias: also bound to another key)`);
     for (const { platform, rule } of hits) {
       const when = rule.when ? `  when: ${rule.when}` : '  (no when clause - always active)';
       console.log(`         ${platform.padEnd(8)} ${rule.command}${when}`);

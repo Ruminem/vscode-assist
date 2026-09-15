@@ -25,7 +25,9 @@
   "contributes": {
     "commands": [
       { "command": "assist.roundTrip", "title": "Assist: Round trip between declaration and definition" },
-      { "command": "assist.roundTrip.explain", "title": "Assist: Explain what the round trip sees here" }
+      { "command": "assist.roundTrip.explain", "title": "Assist: Explain what the round trip sees here" },
+      { "command": "assist.nextFunction", "title": "Assist: Next function in this file" },
+      { "command": "assist.previousFunction", "title": "Assist: Previous function in this file" }
     ],
     "keybindings": [
       {
@@ -57,6 +59,16 @@
         "command": "editor.action.organizeImports",
         "key": "shift+alt+o",
         "when": "config.assist.keymap.enabled && textInputFocus && !editorReadonly && supportedCodeAction =~ /(\\s|^)source\\.organizeImports\\b/"
+      },
+      {
+        "command": "assist.nextFunction",
+        "key": "ctrl+shift+down",
+        "when": "editorTextFocus && editorHasDocumentSymbolProvider && !isLinux && config.assist.keymap.enabled"
+      },
+      {
+        "command": "assist.previousFunction",
+        "key": "ctrl+shift+up",
+        "when": "editorTextFocus && editorHasDocumentSymbolProvider && !isLinux && config.assist.keymap.enabled"
       }
     ],
     "configuration": [

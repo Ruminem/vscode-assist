@@ -7,13 +7,14 @@ Navigation shortcuts VS Code does not ship, bound to keys VS Code does not use.
 | Key | What it does |
 | --- | --- |
 | `Alt+G` / `Alt+D` | Go to the definition. Press it on the definition and it goes back to the declaration. |
+| `Ctrl+Shift+↓` / `Ctrl+Shift+↑` | Jump to the next / previous function in this file. |
 | `Shift+Alt+O` | Open a file anywhere in the workspace. |
 | `Shift+Alt+S` | Find a symbol anywhere in the workspace. |
 | `Alt+M` | List the symbols in this file. |
 
 The last three are VS Code's own `Ctrl+P`, `Ctrl+T` and `Ctrl+Shift+O` under a
 second key.
-`Alt+G` is the one that needed code.
+The first two rows are the ones that needed code.
 
 Verified on Windows only. The macOS and Linux keys are in the manifest, but
 nobody has run them.
@@ -45,6 +46,20 @@ The analysis is entirely your language server's — clangd, cpptools,
 rust-analyzer, tsserver. This extension contributes no parser and no index, so
 it works in any language that has a server, and it is exactly as accurate as
 that server is.
+
+## Moving between functions
+
+`Ctrl+Shift+↓` and `Ctrl+Shift+↑` move the cursor to the name of the next or
+previous function, method or constructor in the file. The list comes from the
+same language server that answers `Alt+G`, so it works in any language whose
+server reports document symbols, and where none does the keys are not claimed.
+Inside a function body, `Ctrl+Shift+↑` goes to the function you are in.
+
+On Windows those keys are a second binding for extending the selection a line
+at a time, which `Shift+↑` and `Shift+↓` already do, so nothing is lost in the
+editor. On Linux the same keys add cursors above and below, so they are not
+bound there. What decides it is the machine the VS Code window runs on: a
+Windows window connected to a Linux host over SSH gets the Windows keys.
 
 ## How this extension treats your keyboard
 

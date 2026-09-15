@@ -16,6 +16,7 @@ cpptools, rust-analyzer, tsserver) 몫임. 이 성질도 깨지 않음 — 깨�
 |---|---|
 | `extension.js` | 진입점. `features/` 목록을 돌며 명령을 등록함. 그 외 로직 없음 |
 | `features/round-trip.js` | `Alt+G`. provider를 전부 물어보고, 커서가 이미 있는 자리를 뺀 뒤, 하나면 점프하고 여럿이면 목록을 냄 |
+| `features/function-step.js` | `Ctrl+Shift+↑/↓`. 언어 서버의 문서 심볼에서 함수·메서드·생성자 이름 줄만 골라 이전·다음으로 이동 |
 | `tools/check-keys.js` | 키 충돌 검사기. 런타임 아님 — 바인딩을 **추가하기 전에** 돌림 |
 | `tools/release.js` | 태그를 `package.json` 버전에서 만듦. 인자 없이 돌리면 점검만 하고, `--push`면 태그를 만들어 밈. neon-glow에서 가져옴 |
 | `tools/make-icon.js` | `icon.png` 생성기. 의존성 없음. neon-glow 렌더러를 모양 하나로 줄인 것 |
@@ -24,7 +25,7 @@ cpptools, rust-analyzer, tsserver) 몫임. 이 성질도 깨지 않음 — 깨�
 | `fixtures/round-trip/` | `Alt+G`가 답해야 하는 자리를 한 화면에 모은 C++ 세 파일. 손으로 돌리는 인수 테스트임 — 자체 `README.md`에 다섯 자리와 기대 결과가 있음. VSIX에는 안 들어감 |
 | `NEXT.md` | 세션 인수인계 노트. VSIX에는 안 들어감 |
 
-명령: `assist.roundTrip` `assist.roundTrip.explain`
+명령: `assist.roundTrip` `assist.roundTrip.explain` `assist.nextFunction` `assist.previousFunction`
 설정: `assist.keymap.enabled` `assist.roundTrip.providers` `assist.roundTrip.searchByName` `assist.roundTrip.pickWhenAmbiguous`
 
 ## 기능을 더하는 비용은 두 갈래임
@@ -34,8 +35,8 @@ cpptools, rust-analyzer, tsserver) 몫임. 이 성질도 깨지 않음 — 깨�
 - **키만 필요한 기능** — `contributes` 항목 하나
 
 **두 번째가 기본임.** VS Code에 이미 명령이 있으면 코드를 쓰지 않음. 지금 실린 것 중
-코드가 든 건 `Alt+G`(`Alt+D`)뿐이고, `Shift+Alt+O`·`Shift+Alt+S`·`Alt+M`은 기존 명령에
-키만 더 단 것임.
+코드가 든 건 `Alt+G`(`Alt+D`)와 `Ctrl+Shift+↑/↓`뿐이고, `Shift+Alt+O`·`Shift+Alt+S`·`Alt+M`은
+기존 명령에 키만 더 단 것임.
 
 ## 키 정책 — 이 프로젝트의 중심
 
@@ -46,7 +47,17 @@ cpptools, rust-analyzer, tsserver) 몫임. 이 성질도 깨지 않음 — 깨�
 그래서 네 가지를 지킴.
 
 1. **키를 더하지, 뺏지 않음.** `Ctrl+T`는 그대로 두고 `Shift+Alt+S`를 더 붙이는 식.
-   밀려나는 게 없으면 충돌도 구조적으로 없음.
+   밀려나는 게 없으면 충돌도 구조적으로 없음. **예외는 별칭임** — 같은 플랫폼에서 같은
+   명령이 같은 `when`으로 다른 키에도 걸려 있으면, 그 키를 가져가도 잃는 게 없음.
+   `Ctrl+Shift+↑/↓`가 그 경우(Windows에서 `Shift+↑/↓`와 같은 선택 확장)고 `check-keys`는
+   `alias`로 표시함. **플랫폼마다 따로 볼 것** — 같은 키가 Linux에선 다중 커서라 `!isLinux`로
+   뺐음. 플랫폼 키는 VS Code 창이 떠 있는 컴퓨터 기준으로 골라짐(`bindToCurrentPlatform`이
+   workbench의 `OS`를 봄). Windows 창에서 SSH로 Linux에 붙으면 Windows 키가 적용됨.
+   **그래서 `check-keys`는 `Ctrl+Shift+↑/↓`를 계속 `TAKEN`으로 보여줌** — 같은 키에 터미널·채팅
+   입력창·노트북 출력용 규칙이 따로 걸려 있어서임. 우리 `when`은 `editorTextFocus &&
+   editorHasDocumentSymbolProvider`라 실제로는 안 겹치지만, 도구는 `when`끼리 겹치는지 판단
+   못 함. 이 둘의 빨간 줄은 검토 끝난 것임. Linux 줄에도 `alias`가 붙는데(다중 커서가
+   `Shift+Alt+↑/↓`에도 있음) 거기선 이 키가 다중 커서의 대표 키라 `!isLinux`는 그대로 둠.
 2. **기본 키맵과 먼저 대조함.** `node tools/check-keys.js <키>`. 이걸로
    `Shift+Alt+O`가 `organizeImports`에 이미 잡혀 있는 걸 붙이기 전에 알았음.
    **임자가 있어도 그 규칙이 조건부면 돌려주면서 붙일 수 있음** — 우리 키를 먼저 넣고,

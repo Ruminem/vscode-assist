@@ -5,12 +5,13 @@ VS Code에 없는 이동 단축키를, VS Code가 쓰지 않는 키에 붙임.
 | 키 | 동작 |
 | --- | --- |
 | `Alt+G` / `Alt+D` | 정의부로 감. 정의부에서 누르면 선언부로 돌아옴 |
+| `Ctrl+Shift+↓` / `Ctrl+Shift+↑` | 이 파일의 다음 / 이전 함수로 이동 |
 | `Shift+Alt+O` | 워크스페이스 전체에서 파일 열기 |
 | `Shift+Alt+S` | 워크스페이스 전체에서 심볼 찾기 |
 | `Alt+M` | 이 파일의 심볼 목록 |
 
 뒤의 셋은 VS Code의 `Ctrl+P`, `Ctrl+T`, `Ctrl+Shift+O`에 키를 하나 더 단 것임. 코드가
-필요했던 건 `Alt+G` 하나뿐임.
+필요했던 건 앞의 두 줄뿐임.
 
 Windows에서만 검증됨. macOS·Linux 키는 매니페스트에 있지만 아무도 돌려보지 않았음.
 
@@ -38,6 +39,18 @@ VS Code에는 `Go to Definition`, `Go to Declaration`, `Go to Implementation`이
 분석은 전부 언어 서버 몫임 — clangd, cpptools, rust-analyzer, tsserver. 이 확장은
 파서도 인덱스도 갖지 않음. 서버가 있는 언어면 다 되고, 정확도는 그 서버의 정확도와
 정확히 같음.
+
+## 함수 사이 이동
+
+`Ctrl+Shift+↓`와 `Ctrl+Shift+↑`는 이 파일의 다음·이전 함수, 메서드, 생성자의 이름으로
+커서를 옮김. 목록은 `Alt+G`에 답하는 것과 같은 언어 서버가 줌. 그래서 문서 심볼을 알려주는
+서버가 있는 언어면 어디서든 되고, 없는 곳에서는 키를 주장하지 않음. 함수 본체 안에서
+`Ctrl+Shift+↑`를 누르면 지금 들어가 있는 함수로 감.
+
+Windows에서 이 키는 한 줄씩 선택을 넓히는 두 번째 키인데, `Shift+↑`·`Shift+↓`가 같은 일을
+하므로 편집기에서 잃는 기능이 없음. Linux에서는 같은 키가 위·아래에 커서를 추가하는
+기능이라 거기서는 붙이지 않음. 기준은 VS Code 창이 떠 있는 컴퓨터임 — Windows 창에서
+SSH로 Linux에 붙어 있으면 Windows 키가 적용됨.
 
 ## 키보드를 다루는 방식
 
