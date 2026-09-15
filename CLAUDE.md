@@ -18,6 +18,7 @@ cpptools, rust-analyzer, tsserver) 몫임. 이 성질도 깨지 않음 — 깨�
 | `features/round-trip.js` | `Alt+G`. provider를 전부 물어보고, 커서가 이미 있는 자리를 뺀 뒤, 하나면 점프하고 여럿이면 목록을 냄 |
 | `features/function-step.js` | `Ctrl+Shift+↑/↓`. 언어 서버의 문서 심볼에서 함수·메서드·생성자 이름 줄만 골라 이전·다음으로 이동 |
 | `features/symbol-search.js` | `Shift+Alt+S`. 자체 심볼 검색 창. 서버에서 빈 검색어 결과와 입력 결과를 받아 이 확장이 직접 fuzzy로 거름. 창의 버튼으로 fuzzy를 켜고 끔 |
+| `features/process-attach.js` | `Ctrl+Alt+P`·`Shift+Alt+P`. C/C++ 확장의 프로세스 선택기(`extension.pickNativeProcess`)와 `cppvsdbg` 디버거로 연결·다시 연결. 다시 연결은 마지막 실행 파일 이름을 `tasklist`로 찾음. Windows 전용 |
 | `tools/check-keys.js` | 키 충돌 검사기. 런타임 아님 — 바인딩을 **추가하기 전에** 돌림 |
 | `tools/release.js` | 태그를 `package.json` 버전에서 만듦. 인자 없이 돌리면 점검만 하고, `--push`면 태그를 만들어 밈. neon-glow에서 가져옴 |
 | `tools/make-icon.js` | `icon.png` 생성기. 의존성 없음. neon-glow 렌더러를 모양 하나로 줄인 것 |
@@ -28,7 +29,7 @@ cpptools, rust-analyzer, tsserver) 몫임. 이 성질도 깨지 않음 — 깨�
 | `package.nls.json` / `package.nls.ko.json` | 명령 제목과 설정 설명의 영어 원문과 한국어. `package.json`에는 `%키%`만 있음 |
 | `NEXT.md` | 세션 인수인계 노트. VSIX에는 안 들어감 |
 
-명령: `assist.roundTrip` `assist.roundTrip.explain` `assist.nextFunction` `assist.previousFunction` `assist.searchSymbols`
+명령: `assist.roundTrip` `assist.roundTrip.explain` `assist.nextFunction` `assist.previousFunction` `assist.searchSymbols` `assist.attachToProcess` `assist.reattachToProcess`
 설정: `assist.keymap.enabled` `assist.roundTrip.providers` `assist.roundTrip.searchByName` `assist.roundTrip.pickWhenAmbiguous` `assist.symbolSearch.fuzzy`
 
 ## 기능을 더하는 비용은 두 갈래임
@@ -38,7 +39,7 @@ cpptools, rust-analyzer, tsserver) 몫임. 이 성질도 깨지 않음 — 깨�
 - **키만 필요한 기능** — `contributes` 항목 하나
 
 **두 번째가 기본임.** VS Code에 이미 명령이 있으면 코드를 쓰지 않음. 지금 실린 것 중
-코드가 든 건 `Alt+G`(`Alt+D`), `Ctrl+Shift+↑/↓`, `Shift+Alt+S`이고, `Shift+Alt+O`·`Alt+M`은
+코드가 든 건 `Alt+G`(`Alt+D`), `Ctrl+Shift+↑/↓`, `Shift+Alt+S`, `Ctrl+Alt+P`·`Shift+Alt+P`이고, `Shift+Alt+O`·`Alt+M`은
 기존 명령에 키만 더 단 것임. **`Shift+Alt+S`는 원래 `Ctrl+T`에 키만 단 것이었음.** 기본 심볼
 검색 창은 서버가 준 결과를 자기 fuzzy로 다시 거를 뿐이라, 서버가 0건을 주면 보여줄 게 없음.
 clangd는 이름 앞부분과 단어 머리글자만 맞춰서 `ce`(→ `Circle`) 같은 중간 건너뛰기에 0건을 줌
@@ -145,7 +146,10 @@ Visual Assist를 쓰던 손버릇을 옮기려고 만든 확장이라, 무료 �
    `Find Symbol in Solution` 같은 것. 명령 제목·설정 설명·README 문장은 이 확장이
    실제로 하는 일을 우리 말로 새로 씀. VA 문서를 옮겨 적지 않음.
 3. **VA의 코드·아이콘·스크린샷·문서가 저장소에 없는지.** 외부 코드를 가져오면 출처와
-   라이선스를 주석에 남김(`tools/make-icon.js`처럼).
+   라이선스를 주석에 남김(`tools/make-icon.js`처럼). **cpptools는 확장 코드(MIT)와 디버거·언어
+   서버 바이너리(Microsoft 독점, `RuntimeLicenses`)가 섞여 있음.** 바이너리는 번들하지 않고 VS Code
+   안에서 명령으로 부르기만 함. 동작을 확인할 땐 `microsoft/vscode-cpptools`의 공개 소스를 보고,
+   근거를 주석에 그 경로로 남김(`features/process-attach.js`처럼).
 4. **`dependencies`가 비어 있는지.** 생기면 그 라이선스를 확인함.
 
 점검 명령 — 배포 파일은 `npx @vscode/vsce ls`가 보여주는 것들임:

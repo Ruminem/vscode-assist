@@ -13,6 +13,7 @@ const FEATURES = [
   require('./features/round-trip'),
   require('./features/function-step'),
   require('./features/symbol-search'),
+  require('./features/process-attach'),
 ];
 
 /** @param {vscode.ExtensionContext} context */

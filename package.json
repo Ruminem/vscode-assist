@@ -29,7 +29,9 @@
       { "command": "assist.roundTrip.explain", "title": "%command.explain.title%" },
       { "command": "assist.nextFunction", "title": "%command.nextFunction.title%" },
       { "command": "assist.previousFunction", "title": "%command.previousFunction.title%" },
-      { "command": "assist.searchSymbols", "title": "%command.searchSymbols.title%" }
+      { "command": "assist.searchSymbols", "title": "%command.searchSymbols.title%" },
+      { "command": "assist.attachToProcess", "title": "%command.attachToProcess.title%" },
+      { "command": "assist.reattachToProcess", "title": "%command.reattachToProcess.title%" }
     ],
     "keybindings": [
       {
@@ -71,6 +73,16 @@
         "command": "assist.previousFunction",
         "key": "ctrl+shift+up",
         "when": "editorTextFocus && editorHasDocumentSymbolProvider && !isLinux && config.assist.keymap.enabled"
+      },
+      {
+        "command": "assist.attachToProcess",
+        "key": "ctrl+alt+p",
+        "when": "isWindows && config.assist.keymap.enabled"
+      },
+      {
+        "command": "assist.reattachToProcess",
+        "key": "shift+alt+p",
+        "when": "isWindows && config.assist.keymap.enabled"
       }
     ],
     "configuration": [

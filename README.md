@@ -9,11 +9,13 @@ Navigation shortcuts VS Code does not ship, bound to keys VS Code does not use.
 | `Alt+G` / `Alt+D` | Go to the definition. Press it on the definition and it goes back to the declaration. |
 | `Ctrl+Shift+↓` / `Ctrl+Shift+↑` | Jump to the next / previous function in this file. |
 | `Shift+Alt+S` | Search symbols in the workspace, with fuzzy matching you can switch off. |
+| `Ctrl+Alt+P` | Attach the debugger to a running process. |
+| `Shift+Alt+P` | Attach again to the process attached last. |
 | `Shift+Alt+O` | Open a file anywhere in the workspace. |
 | `Alt+M` | List the symbols in this file. |
 
 The last two are VS Code's own `Ctrl+P` and `Ctrl+Shift+O` under a second key.
-The first three rows are the ones that needed code.
+The first five rows are the ones that needed code.
 
 Verified on Windows only. The macOS and Linux keys are in the manifest, but
 nobody has run them.
@@ -84,6 +86,21 @@ clangd returns at most 100 symbols per request unless it is started with
 `--limit-results=0`. In a large project, a name you only remember the middle of
 can fall outside that list. The same limit applies to code completion, which is
 why it is not raised for you.
+
+## Attaching the debugger
+
+`Ctrl+Alt+P` opens the C/C++ extension's process picker and attaches its Windows
+debugger to the process you choose, with no `launch.json` entry to write first.
+`Shift+Alt+P` attaches again to the process attached last in this window. It
+finds that process by its executable name, so a program that was stopped and
+started again is picked up under its new process id. When several running
+processes share the name you choose among them, and before anything has been
+attached it opens the picker instead.
+
+Both need the C/C++ extension (`ms-vscode.cpptools`): its debugger does the
+work, and this extension only asks it to. They are bound on Windows only, where
+that debugger can attach from a process id alone. The process attached last is
+forgotten when the window reloads.
 
 ## How this extension treats your keyboard
 
