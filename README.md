@@ -15,19 +15,31 @@ The last three are VS Code's own `Ctrl+P`, `Ctrl+T` and `Ctrl+Shift+O` under a
 second key.
 `Alt+G` is the one that needed code.
 
+Verified on Windows only. The macOS and Linux keys are in the manifest, but
+nobody has run them.
+
 ## The round trip
 
 VS Code ships `Go to Definition`, `Go to Declaration` and `Go to Implementation`
-as three one-way commands on three keys, but at any given cursor position only
-one of them has an answer worth having. `Alt+G` asks them in order and takes the
-first location that is not the one under the cursor:
+as three one-way commands on three keys. `Alt+G` asks all of them at once, adds
+whatever the workspace symbol index has under the same name, and drops every
+answer that points at the place the cursor already is. One place left is a
+jump; several open a small menu at the cursor, with the one outside a header
+first.
 
-| Where the cursor is | What answers | Where you land |
-| --- | --- | --- |
-| a call site | `definition` | the definition |
-| the definition, in a `.cpp` | `declaration` | the declaration in the header |
-| the declaration, in a header | `definition` | the definition in the `.cpp` |
-| a virtual, over its base | `implementation` | the overrides |
+| Where the cursor is | Where you land |
+| --- | --- |
+| a call site | a menu: the definition in the `.cpp` first, the declaration in the header next |
+| the declaration, in a header | the definition in the `.cpp` |
+| the definition, in a `.cpp` | the declaration in the header |
+| inside a member function's body | a menu: the declarations that carry that name |
+| a virtual, over its base | the override |
+
+That table was measured with Microsoft's C/C++ extension, which answers most
+positions with exactly one location - the name search is what supplies the
+second row of the menu at a call site. When a jump goes somewhere unexpected,
+**Assist: Explain what the round trip sees here** lists what each source
+answered and which answers were dropped.
 
 The analysis is entirely your language server's — clangd, cpptools,
 rust-analyzer, tsserver. This extension contributes no parser and no index, so
@@ -82,8 +94,9 @@ only thing that can give it back.
 | Setting | Default | |
 | --- | --- | --- |
 | `assist.keymap.enabled` | `true` | Master switch for every contributed key. |
-| `assist.roundTrip.chain` | `["definition", "declaration", "implementation"]` | Which providers `Alt+G` asks, in order. |
-| `assist.roundTrip.pickWhenAmbiguous` | `true` | Show a picker when several locations answer. |
+| `assist.roundTrip.providers` | `["definition", "implementation", "declaration"]` | Which providers `Alt+G` asks. The order only breaks ties. |
+| `assist.roundTrip.searchByName` | `true` | Also look the name up in the workspace symbol index. |
+| `assist.roundTrip.pickWhenAmbiguous` | `true` | Show a menu when several locations answer. |
 
 ## Rebinding
 

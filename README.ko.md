@@ -12,19 +12,28 @@ VS Code에 없는 이동 단축키를, VS Code가 쓰지 않는 키에 붙임.
 뒤의 셋은 VS Code의 `Ctrl+P`, `Ctrl+T`, `Ctrl+Shift+O`에 키를 하나 더 단 것임. 코드가
 필요했던 건 `Alt+G` 하나뿐임.
 
+Windows에서만 검증됨. macOS·Linux 키는 매니페스트에 있지만 아무도 돌려보지 않았음.
+
 ## 왕복(round trip)
 
 VS Code에는 `Go to Definition`, `Go to Declaration`, `Go to Implementation`이 서로
-다른 키에 편도로 걸려 있음. 그런데 커서가 놓인 자리마다 셋 중 쓸모 있는 답을 내는 건
-하나뿐임. `Alt+G`는 이 셋을 순서대로 물어보고 **지금 서 있는 자리가 아닌 첫 번째
-답**을 택함.
+다른 키에 편도로 걸려 있음. `Alt+G`는 셋을 한꺼번에 물어보고, 워크스페이스 심볼
+인덱스에서 같은 이름을 가진 것도 더한 뒤, **커서가 이미 있는 자리를 가리키는 답은 버림.**
+남은 곳이 하나면 바로 점프하고, 여럿이면 커서 자리에 작은 메뉴를 띄움. 메뉴에서는
+헤더가 아닌 파일에 있는 쪽이 맨 위임.
 
-| 커서 위치 | 답하는 provider | 도착지 |
-| --- | --- | --- |
-| 호출부 | `definition` | 정의부 |
-| `.cpp`의 정의부 | `declaration` | 헤더의 선언부 |
-| 헤더의 선언부 | `definition` | `.cpp`의 정의부 |
-| 가상 함수의 기반 선언 | `implementation` | 오버라이드들 |
+| 커서 위치 | 도착지 |
+| --- | --- |
+| 호출부 | 메뉴 — `.cpp`의 정의부가 먼저, 헤더의 선언부가 다음 |
+| 헤더의 선언부 | `.cpp`의 정의부 |
+| `.cpp`의 정의부 | 헤더의 선언부 |
+| 멤버 함수 본체 안 | 메뉴 — 같은 이름을 가진 선언들 |
+| 가상 함수의 기반 선언 | 오버라이드 |
+
+이 표는 Microsoft C/C++ 확장으로 잰 것임. 이 서버는 대부분의 자리에서 답을 정확히 하나만
+주기 때문에, 호출부 메뉴의 두 번째 줄은 이름 검색이 채움. 점프가 예상과 다른 곳으로 가면
+명령 팔레트에서 **Assist: Explain what the round trip sees here**를 실행하면 각 출처가
+뭘 답했고 뭐가 버려졌는지 보여줌.
 
 분석은 전부 언어 서버 몫임 — clangd, cpptools, rust-analyzer, tsserver. 이 확장은
 파서도 인덱스도 갖지 않음. 서버가 있는 언어면 다 되고, 정확도는 그 서버의 정확도와
@@ -72,8 +81,9 @@ import가 정리되고, C++ 파일에서는 Quick Open이 열림. `check-keys`�
 | 설정 | 기본값 | |
 | --- | --- | --- |
 | `assist.keymap.enabled` | `true` | 이 확장이 잡는 모든 키의 마스터 스위치 |
-| `assist.roundTrip.chain` | `["definition", "declaration", "implementation"]` | `Alt+G`가 물어볼 provider와 순서 |
-| `assist.roundTrip.pickWhenAmbiguous` | `true` | 여러 곳이 답하면 목록을 띄움 |
+| `assist.roundTrip.providers` | `["definition", "implementation", "declaration"]` | `Alt+G`가 물어볼 provider. 순서는 동점일 때만 씀 |
+| `assist.roundTrip.searchByName` | `true` | 워크스페이스 심볼 인덱스에서 이름으로도 찾음 |
+| `assist.roundTrip.pickWhenAmbiguous` | `true` | 여러 곳이 답하면 메뉴를 띄움 |
 
 ## 키 바꾸기
 
