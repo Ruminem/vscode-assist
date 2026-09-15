@@ -200,15 +200,15 @@ function where(loc) {
 
 /**
  * Every row reads source-first, so the picker sorts by eye the way it sorts in
- * code. A provider row has nothing to add after its name - the location column
- * already says where it landed - while a name row does: two entries from the
- * index can differ only by which class they belong to, and Shape::area against
+ * code. A provider row has nothing to add after its name - the location already
+ * says where it landed - while a name row does: two entries from the index can
+ * differ only by which class they belong to, and Shape::area against
  * Circle::area is the whole distinction being offered.
- * @param {{kind: string, label?: string}} hit
+ * @param {{kind: string, label?: string, loc: vscode.Location}} hit
  */
 function describe(hit) {
-  if (hit.kind === 'name') return `$(search) By name · ${hit.label}`;
-  return `$(symbol-method) ${LABELS[hit.kind] || hit.kind}`;
+  const source = hit.kind === 'name' ? `By name · ${hit.label}` : LABELS[hit.kind] || hit.kind;
+  return `${source}  —  ${where(hit.loc)}`;
 }
 
 /** @param {vscode.Location} loc */
@@ -220,13 +220,40 @@ async function reveal(loc) {
   editor.revealRange(loc.range, vscode.TextEditorRevealType.InCenterIfOutsideViewport);
 }
 
-/** @param {{kind: string, loc: vscode.Location}[]} hits @param {string} placeHolder */
-async function pick(hits, placeHolder) {
-  const chosen = await vscode.window.showQuickPick(
-    hits.map((hit) => ({ label: describe(hit), description: where(hit.loc), hit })),
-    { placeHolder, matchOnDescription: true },
-  );
-  return chosen && chosen.hit;
+// QuickPick has no position - it always opens at the top of the window, far from
+// the cursor the question was asked at. The one list VS Code opens at the cursor
+// is the code action menu, so the choice is offered as code actions of a kind
+// nothing else provides, answered only when the menu is opened for that kind.
+const MENU_KIND = vscode.CodeActionKind.Empty.append('assist.roundTrip');
+let offered = null;
+let menuProvider = null;
+
+/** @param {vscode.TextDocument} document @param {{kind: string, loc: vscode.Location}[]} hits */
+function pick(document, hits) {
+  offered = { uri: document.uri.toString(), hits };
+  // ponytail: registered on first use and never disposed - it lives exactly as
+  // long as the extension host. Move to activate() if features grow a lifecycle.
+  if (!menuProvider) {
+    menuProvider = vscode.languages.registerCodeActionsProvider(
+      '*',
+      {
+        provideCodeActions(doc, _range, context) {
+          if (!offered || doc.uri.toString() !== offered.uri) return;
+          if (!context.only || !context.only.contains(MENU_KIND)) return;
+          return offered.hits.map((hit) => {
+            const action = new vscode.CodeAction(describe(hit), MENU_KIND);
+            action.command = { title: 'Go', command: 'assist.roundTrip.go', arguments: [hit.loc] };
+            return action;
+          });
+        },
+      },
+      { providedCodeActionKinds: [MENU_KIND] },
+    );
+  }
+  return vscode.commands.executeCommand('editor.action.codeAction', {
+    kind: MENU_KIND.value,
+    apply: 'never',
+  });
 }
 
 function settings() {
@@ -251,11 +278,11 @@ async function roundTrip() {
     return;
   }
 
-  const target =
-    targets.length > 1 && options.pickWhenAmbiguous
-      ? await pick(targets, 'Round trip: several places answer to this name')
-      : targets[0];
-  if (target) await reveal(target.loc);
+  if (targets.length > 1 && options.pickWhenAmbiguous) {
+    await pick(editor.document, targets);
+    return;
+  }
+  await reveal(targets[0].loc);
 }
 
 /**
@@ -321,5 +348,7 @@ module.exports = {
   commands: {
     'assist.roundTrip': roundTrip,
     'assist.roundTrip.explain': explain,
+    // Not contributed, so it stays out of the palette: the menu's rows call it.
+    'assist.roundTrip.go': reveal,
   },
 };
