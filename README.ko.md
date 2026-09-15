@@ -6,12 +6,12 @@ VS Code에 없는 이동 단축키를, VS Code가 쓰지 않는 키에 붙임.
 | --- | --- |
 | `Alt+G` / `Alt+D` | 정의부로 감. 정의부에서 누르면 선언부로 돌아옴 |
 | `Ctrl+Shift+↓` / `Ctrl+Shift+↑` | 이 파일의 다음 / 이전 함수로 이동 |
+| `Shift+Alt+S` | 워크스페이스 심볼 검색. fuzzy 검색이 되고 끌 수도 있음 |
 | `Shift+Alt+O` | 워크스페이스 전체에서 파일 열기 |
-| `Shift+Alt+S` | 워크스페이스 전체에서 심볼 찾기 |
 | `Alt+M` | 이 파일의 심볼 목록 |
 
-뒤의 셋은 VS Code의 `Ctrl+P`, `Ctrl+T`, `Ctrl+Shift+O`에 키를 하나 더 단 것임. 코드가
-필요했던 건 앞의 두 줄뿐임.
+뒤의 둘은 VS Code의 `Ctrl+P`, `Ctrl+Shift+O`에 키를 하나 더 단 것임. 코드가 필요했던 건
+앞의 세 줄임.
 
 Windows에서만 검증됨. macOS·Linux 키는 매니페스트에 있지만 아무도 돌려보지 않았음.
 
@@ -52,13 +52,33 @@ Windows에서 이 키는 한 줄씩 선택을 넓히는 두 번째 키인데, `S
 기능이라 거기서는 붙이지 않음. 기준은 VS Code 창이 떠 있는 컴퓨터임 — Windows 창에서
 SSH로 Linux에 붙어 있으면 Windows 키가 적용됨.
 
+## 심볼 검색
+
+`Shift+Alt+S`는 입력한 글자가 **순서대로만 들어 있으면** 찾아주는 심볼 검색 창을 엶.
+`ce`로 `Circle`이 나오는 식임. VS Code 기본 `Ctrl+T`는 clangd에서 이게 안 되는데, VS Code
+탓은 아님. 기본 창은 검색어를 언어 서버에 넘기고 돌아온 결과만 다시 거를 수 있는데,
+clangd는 이름 앞부분이나 단어 머리글자에서만 맞춰서 `ce`에는 아무것도 안 줌. 이 검색 창은
+서버가 빈 검색어에 주는 전체 목록과 검색어 자체에 대한 답을 합친 뒤, 거르는 일은 여기서 함.
+
+검색 창의 버튼으로 그 검색에서만 fuzzy를 끌 수 있고, 그러면 글자가 붙어 있어야 찾음. 창을
+열 때의 기본값은 `assist.symbolSearch.fuzzy`가 정함. `Ctrl+T`는 건드리지 않음.
+
+찾은 글자는 굵게 보임. VS Code는 검색 결과에서 어느 글자를 강조할지 확장이 정하게 해주지
+않아서, 유니코드의 굵은 산세리프 글자로 대신 그림. 영문과 숫자만 되고, 주변 글자와 모양이
+조금 다를 수 있으며, 화면 낭독기는 수학 기호로 읽음.
+
+clangd는 `--limit-results=0`으로 띄우지 않으면 한 번에 심볼을 최대 100개만 줌. 큰
+프로젝트에서 이름 가운데만 기억나는 심볼은 그 목록 밖에 있을 수 있음. 같은 제한이 자동 완성
+목록에도 걸려 있어서, 이 확장이 알아서 올리지는 않음.
+
 ## 키보드를 다루는 방식
 
 키맵 확장은 남의 키보드를 어지럽히기 쉬움. 그래서 네 가지 원칙 위에 세웠음.
 
 **키를 더하지, 뺏지 않음.** 충돌은 *이미 뭔가 하던 키가 다른 일을 하기 시작할 때*
-생김. `Ctrl+T`와 `Ctrl+Shift+O`는 그대로 살아 있고, `Shift+Alt+S`와 `Alt+M`은 같은
-명령에 붙은 두 번째 키임. 밀려나는 게 없음.
+생김. `Ctrl+T`와 `Ctrl+Shift+O`는 그대로 살아 있음. `Alt+M`은 같은 명령에 붙은 두 번째
+키이고, `Shift+Alt+S`는 `Ctrl+T`를 대신하는 게 아니라 그 옆에 자체 검색 창을 여는 키임.
+밀려나는 게 없음.
 
 **모든 키는 기본 키맵과 먼저 대조함.** `tools/check-keys.js`가 Windows·macOS·Linux의
 기본 키맵을 읽어서 그 키에 이미 임자가 있는지 알려줌. 바인딩을 추가하기 전에, 그리고
@@ -97,6 +117,7 @@ import가 정리되고, C++ 파일에서는 Quick Open이 열림. `check-keys`�
 | `assist.roundTrip.providers` | `["definition", "implementation", "declaration"]` | `Alt+G`가 물어볼 provider. 순서는 동점일 때만 씀 |
 | `assist.roundTrip.searchByName` | `true` | 워크스페이스 심볼 인덱스에서 이름으로도 찾음 |
 | `assist.roundTrip.pickWhenAmbiguous` | `true` | 여러 곳이 답하면 메뉴를 띄움 |
+| `assist.symbolSearch.fuzzy` | `true` | `Shift+Alt+S`를 fuzzy 검색이 켜진 상태로 엶 |
 
 ## 키 바꾸기
 

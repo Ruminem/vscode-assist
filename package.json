@@ -27,7 +27,8 @@
       { "command": "assist.roundTrip", "title": "Assist: Round trip between declaration and definition" },
       { "command": "assist.roundTrip.explain", "title": "Assist: Explain what the round trip sees here" },
       { "command": "assist.nextFunction", "title": "Assist: Next function in this file" },
-      { "command": "assist.previousFunction", "title": "Assist: Previous function in this file" }
+      { "command": "assist.previousFunction", "title": "Assist: Previous function in this file" },
+      { "command": "assist.searchSymbols", "title": "Assist: Search symbols in the workspace" }
     ],
     "keybindings": [
       {
@@ -41,7 +42,7 @@
         "when": "editorTextFocus && editorHasDefinitionProvider && config.assist.keymap.enabled"
       },
       {
-        "command": "workbench.action.showAllSymbols",
+        "command": "assist.searchSymbols",
         "key": "shift+alt+s",
         "when": "config.assist.keymap.enabled"
       },
@@ -108,6 +109,16 @@
             "default": true,
             "order": 2,
             "markdownDescription": "When a provider answers with several locations - overloads, or a virtual with many overrides - show a picker. Turn this off to always take the first result and never be interrupted."
+          }
+        }
+      },
+      {
+        "title": "Assist: Symbol Search",
+        "properties": {
+          "assist.symbolSearch.fuzzy": {
+            "type": "boolean",
+            "default": true,
+            "markdownDescription": "Whether `Shift+Alt+S` starts in fuzzy mode, where the letters of the query only have to appear in order: `ce` finds `Circle`. The button in the search box switches it for that one search.\n\nThe matching is done by this extension rather than by the language server, because clangd only matches at the start of a name or of a word inside it, and answers `ce` with nothing. Candidates come from the full list the server hands over for an empty query plus its answer to the query itself. clangd caps each list at 100 unless it is started with `--limit-results=0`, so in a large project a name matched only in the middle can be missed."
           }
         }
       }

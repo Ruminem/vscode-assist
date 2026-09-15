@@ -9,7 +9,11 @@ const vscode = require('vscode');
 //
 // Adding one of those is: a file in features/, a line in this list, and a
 // contributes entry. Nothing else in this file changes.
-const FEATURES = [require('./features/round-trip'), require('./features/function-step')];
+const FEATURES = [
+  require('./features/round-trip'),
+  require('./features/function-step'),
+  require('./features/symbol-search'),
+];
 
 /** @param {vscode.ExtensionContext} context */
 function activate(context) {
