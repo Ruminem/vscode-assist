@@ -78,20 +78,28 @@ VS Code가 커서에 여는 목록은 코드 액션 메뉴뿐이다. 대신 타�
 ⑤ **로컬에 VSIX로 설치했다.** 그 전엔 F5 창 밖에서 설치된 적이 없어서 평소 창에서
 `Alt+G`가 안 먹었다.
 
+⑥ `Shift+Alt+O`를 Quick Open에 붙였다 — import 정리를 지원하는 파일에서는 기본의
+Organize Imports를 똑같은 `when`으로 한 번 더 넣어 돌려준다. ⑦ 명령 제목이 VA의
+"GoTo Related"와 겹쳐서 바꿨고, **작업 끝날 때마다 하는 저작권·상표 점검**을 CLAUDE.md에
+넣었다. ⑧ README를 지금 동작에 맞췄다(없어진 `chain` 설정이 남아 있었다). ⑨ **저장소를
+Public으로 돌리고 v0.1.0을 GitHub 릴리스와 마켓에 냈다.** 첫 릴리스 노트는 루트 커밋이
+빠져서(`루트..태그` 범위가 루트를 뺀다) 손으로 한 줄 넣었다 — 태그가 생긴 뒤로는 안 생기는
+문제라 워크플로는 안 고쳤다.
+
+같은 날 **neon-glow와 cmake-link-explorer 이력에서 회사 메일을 지웠다**(이 저장소엔 원래
+없었다). 옛 커밋이 해시로는 아직 GitHub에 남아 Support 티켓 #4759839로 삭제를 요청했다.
+그 커밋을 만든 회사 PC의 옛 clone은 지우고 새로 받아야 한다.
+
 **다음 할 것**
-- **내 C++ 프로젝트에서 하루 쓰기.** "끝났다"의 뒷절반이고, 이게 릴리스 조건이다.
-  코드를 고치면 설치본은 옛날 것으로 남는다 — `npx @vscode/vsce package` 후
-  `code --install-extension <vsix> --force`로 다시 설치할 것.
-- **`VSCE_PAT` 등록.** `gh secret set VSCE_PAT --repo Ruminem/vscode-assist`.
-  neon-glow에 등록된 값은 GitHub에서 다시 읽을 수 없다. 토큰 값을 따로 갖고 있어야
-  하고, 없으면 Azure DevOps에서 새로 발급한다(Marketplace: Manage, All accessible
-  organizations).
-- **저장소 Public 전환 → 태그.** 비공개인 채로 게시하면 마켓 페이지의 저장소 링크와
-  README의 `README.ko.md` 링크가 404다 — vsce가 상대 링크를 GitHub URL로 바꿔 넣는다.
-  순서: Public 전환 → `node tools/release.js`(점검) → `node tools/release.js --push`.
-- **한 저장소에 Claude 세션 하나만 붙일 것.** 9/7에 다른 세션이 커밋하면서 여기서
-  편집 중이던 파일 둘을 자기 커밋에 쓸어담았다. 결과는 멀쩡했지만 타이밍이 조금만
-  달랐으면 반쯤 짜인 코드가 들어갔다.
+- **내 C++ 프로젝트에서 하루 쓰기.** 릴리스가 먼저 나갔지만 "끝났다"의 뒷절반은 아직이다.
+  거슬리는 게 나오면 고쳐서 0.1.1로 낸다. 설치본을 고치려면 `npx @vscode/vsce package` 후
+  `code --install-extension <vsix> --force`, 그리고 **창 리로드** — 9/15에 리로드를 안 해서
+  새 키가 안 먹는 줄 알고 한참 헤맸다.
+- **가상 함수 표시(virtual/override)를 심볼 검색 결과에 붙일지.** VS Code 기본 검색 창엔
+  끼어들 수 없어서 자체 검색 창이 필요하고, 선언 줄에서 키워드를 골라내는 건 "파서를 갖지
+  않음" 원칙과 부딪힌다. 헤더 선언 줄에만 표시하는 가벼운 버전이면 해볼 만하다. 미뤄둠.
+- **한 저장소에 Claude 세션 하나만 붙일 것.** 9/7에 다른 세션이 커밋하면서 여기서 편집
+  중이던 파일 둘을 자기 커밋에 쓸어담았다.
 
 **`displayName`을 `"Assist — Navigation Keys"`로 정했다.** 마켓을 훑어보니 **설명형
 이름은 죄다 임자가 있다** — `Code Navigation`은 다른 익스텐션의 이름 전체고, `Waypoint`는
@@ -107,4 +115,8 @@ ID가 `vscode-assist`라, 이름만 딴 걸로 바꾸면 설치한 사람이 명
 Visual Assist는 **실제로 VS Code 마켓에 올라와 있어서**, 공식 포팅으로 읽힐 여지가
 가정이 아니라 실재였다.
 
-**막힌 것 — 없다.**
+**막힌 것 — neon-glow의 토큰 검사 원인이 확정이 안 됐다.** vsce 4.0.0(9/14)이 나온 다음 날
+두 저장소 모두 `verify-pat`이 `securityroles` 타임아웃을 냈고, 두 워크플로를 vsce 3으로
+고정하자 **이 저장소는 통과해서 v0.1.0이 게시됐지만 neon-glow는 3에서도 실패했다.** 그러니
+"원인은 vsce 4"라고 쓴 두 커밋 메시지는 절반만 맞다. neon-glow 토큰 자체가 죽었을 수
+있다(cmake-link-explorer에도 "token died early" 기록이 있다). 이 저장소를 막는 문제는 아님.
