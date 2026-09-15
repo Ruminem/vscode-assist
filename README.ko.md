@@ -4,11 +4,12 @@ VS Code에 없는 이동 단축키를, VS Code가 쓰지 않는 키에 붙임.
 
 | 키 | 동작 |
 | --- | --- |
-| `Alt+G` | 정의부로 감. 정의부에서 누르면 선언부로 돌아옴 |
+| `Alt+G` / `Alt+D` | 정의부로 감. 정의부에서 누르면 선언부로 돌아옴 |
+| `Shift+Alt+O` | 워크스페이스 전체에서 파일 열기 |
 | `Shift+Alt+S` | 워크스페이스 전체에서 심볼 찾기 |
 | `Alt+M` | 이 파일의 심볼 목록 |
 
-뒤의 둘은 VS Code의 `Ctrl+T`, `Ctrl+Shift+O`에 키를 하나 더 단 것임. 코드가
+뒤의 셋은 VS Code의 `Ctrl+P`, `Ctrl+T`, `Ctrl+Shift+O`에 키를 하나 더 단 것임. 코드가
 필요했던 건 `Alt+G` 하나뿐임.
 
 ## 왕복(round trip)
@@ -38,13 +39,20 @@ VS Code에는 `Go to Definition`, `Go to Declaration`, `Go to Implementation`이
 명령에 붙은 두 번째 키임. 밀려나는 게 없음.
 
 **모든 키는 기본 키맵과 먼저 대조함.** `tools/check-keys.js`가 Windows·macOS·Linux의
-기본 키맵을 읽어서 그 키에 이미 임자가 있는지 알려줌. "파일 열기"라면 `Shift+Alt+O`가
-당연한 후보인데, `editor.action.organizeImports`가 이미 쓰고 있어서 여기서는 붙이지
-않았음. 바인딩을 추가하기 전에, 그리고 고민 중인 키에 대해 돌림.
+기본 키맵을 읽어서 그 키에 이미 임자가 있는지 알려줌. 바인딩을 추가하기 전에, 그리고
+고민 중인 키에 대해 돌림.
 
 ```bash
 node tools/check-keys.js alt+o
 ```
+
+임자가 있어도, 그 규칙이 조건부면 나눠 쓸 수 있음. `Shift+Alt+O`가 그렇게 들어왔음.
+기본값에서 이 키는 `Organize Imports`인데, **import 정리를 지원하는 언어 서버가 있는
+파일에서만** 동작함. cpptools는 지원하지 않으니 C++에서는 아무 일도 안 함. 그래서 이
+확장은 이 키를 Quick Open에 붙이고, 그 **뒤에** 한 번 더 `Organize Imports`에 기본값과
+똑같은 `when` 절로 붙임. 둘 다 해당하면 뒤의 규칙이 이김 — TypeScript 파일에서는 여전히
+import가 정리되고, C++ 파일에서는 Quick Open이 열림. `check-keys`는 이 한 쌍을 임자
+있음이 아니라 `yields`로 보고함.
 
 **`when` 절을 가능한 한 좁게 검.** `Alt+G`에는 `editorHasDefinitionProvider`가 붙어
 있음. 그래서 Markdown 파일이나 설정 탭에서는 **애초에 이 키를 주장하지 않고**, 그 키를

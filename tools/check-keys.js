@@ -99,17 +99,31 @@ async function main() {
     defaults[platform] = parseJsonc(await localCopy(platform, refresh));
   }
 
+  // A default rule this extension binds again - same key, same command, with the
+  // default's own when clause at the end of ours - is being handed back rather
+  // than taken: later rules win, so wherever the default fired it still does.
+  const handedBack = (key, rule) =>
+    contributed.some(
+      (b) =>
+        keysOf(b).includes(key) &&
+        b.command === rule.command &&
+        (b.when || '').endsWith(rule.when || '')
+    );
+
   let collisions = 0;
   for (const { key, label } of targets) {
     const hits = [];
+    let yields = false;
     for (const platform of PLATFORMS) {
       for (const rule of defaults[platform]) {
-        if (rule.key && normalize(rule.key) === key) hits.push({ platform, rule });
+        if (!rule.key || normalize(rule.key) !== key) continue;
+        if (handedBack(key, rule)) yields = true;
+        else hits.push({ platform, rule });
       }
     }
 
     if (hits.length === 0) {
-      console.log(`  free   ${key.padEnd(16)} ${label}`);
+      console.log(`  ${yields ? 'yields' : 'free  '} ${key.padEnd(16)} ${label}`);
       continue;
     }
 

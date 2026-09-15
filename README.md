@@ -6,11 +6,13 @@ Navigation shortcuts VS Code does not ship, bound to keys VS Code does not use.
 
 | Key | What it does |
 | --- | --- |
-| `Alt+G` | Go to the definition. Press it on the definition and it goes back to the declaration. |
+| `Alt+G` / `Alt+D` | Go to the definition. Press it on the definition and it goes back to the declaration. |
+| `Shift+Alt+O` | Open a file anywhere in the workspace. |
 | `Shift+Alt+S` | Find a symbol anywhere in the workspace. |
 | `Alt+M` | List the symbols in this file. |
 
-The last two are VS Code's own `Ctrl+T` and `Ctrl+Shift+O` under a second key.
+The last three are VS Code's own `Ctrl+P`, `Ctrl+T` and `Ctrl+Shift+O` under a
+second key.
 `Alt+G` is the one that needed code.
 
 ## The round trip
@@ -44,13 +46,21 @@ Nothing is displaced.
 
 **Every key is checked against the default keymap first.** `tools/check-keys.js`
 reads the shipped defaults for Windows, macOS and Linux and reports whether a
-candidate key is already spoken for. `Shift+Alt+O` would be the obvious key for
-"open file", and it is not bound here because `editor.action.organizeImports`
-has it. Run it before adding a binding, and on a key you are considering:
+candidate key is already spoken for. Run it before adding a binding, and on a
+key you are considering:
 
 ```bash
 node tools/check-keys.js alt+o
 ```
+
+A key that is spoken for can still be shared, if the rule holding it is
+conditional. That is how `Shift+Alt+O` got in. By default it is `Organize
+Imports`, but only in a file whose language server can organize imports, and
+cpptools cannot, so in C++ the key does nothing. This extension binds it to
+Quick Open, and then binds it once more, after that, back to `Organize Imports`
+under the default's own `when` clause. The later rule wins wherever both apply:
+a TypeScript file still organizes its imports, a C++ file opens Quick Open.
+`check-keys` reports that pair as `yields` rather than taken.
 
 **Every binding is scoped as tightly as it can be.** `Alt+G` carries
 `editorHasDefinitionProvider`, so in a Markdown file or a settings tab the key is

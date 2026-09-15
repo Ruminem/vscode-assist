@@ -47,6 +47,16 @@
         "command": "workbench.action.gotoSymbol",
         "key": "alt+m",
         "when": "editorTextFocus && config.assist.keymap.enabled"
+      },
+      {
+        "command": "workbench.action.quickOpen",
+        "key": "shift+alt+o",
+        "when": "config.assist.keymap.enabled"
+      },
+      {
+        "command": "editor.action.organizeImports",
+        "key": "shift+alt+o",
+        "when": "config.assist.keymap.enabled && textInputFocus && !editorReadonly && supportedCodeAction =~ /(\\s|^)source\\.organizeImports\\b/"
       }
     ],
     "configuration": [

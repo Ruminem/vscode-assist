@@ -33,8 +33,9 @@ cpptools, rust-analyzer, tsserver) 몫임. 이 성질도 깨지 않음 — 깨�
   `contributes` 항목
 - **키만 필요한 기능** — `contributes` 항목 하나
 
-**두 번째가 기본임.** VS Code에 이미 명령이 있으면 코드를 쓰지 않음. 지금 실린 셋 중
-코드가 든 건 `Alt+G`뿐이고, `Shift+Alt+S`와 `Alt+M`은 기존 명령에 키만 더 단 것임.
+**두 번째가 기본임.** VS Code에 이미 명령이 있으면 코드를 쓰지 않음. 지금 실린 것 중
+코드가 든 건 `Alt+G`(`Alt+D`)뿐이고, `Shift+Alt+O`·`Shift+Alt+S`·`Alt+M`은 기존 명령에
+키만 더 단 것임.
 
 ## 키 정책 — 이 프로젝트의 중심
 
@@ -48,6 +49,12 @@ cpptools, rust-analyzer, tsserver) 몫임. 이 성질도 깨지 않음 — 깨�
    밀려나는 게 없으면 충돌도 구조적으로 없음.
 2. **기본 키맵과 먼저 대조함.** `node tools/check-keys.js <키>`. 이걸로
    `Shift+Alt+O`가 `organizeImports`에 이미 잡혀 있는 걸 붙이기 전에 알았음.
+   **임자가 있어도 그 규칙이 조건부면 돌려주면서 붙일 수 있음** — 우리 키를 먼저 넣고,
+   그 뒤에 기본 명령을 기본과 똑같은 `when`으로 한 번 더 넣음. 뒤 규칙이 이기므로 기본이
+   동작하던 자리는 그대로임. `Shift+Alt+O`가 이렇게 들어갔고, `check-keys`는 이걸
+   `yields`로 보여줌. `when` 없는(항상 켜진) 기본 규칙에는 못 씀 — 돌려줄 자리가 전부라
+   우리 키가 동작할 자리가 안 남음. 기본 키맵엔 `!( )` 부정 문법이 한 번도 안 쓰여서,
+   "반대 조건"을 식으로 쓰는 방법은 검증 안 된 채로 두고 이 방식을 씀.
 3. **`when`을 가능한 한 좁게 검.** `Alt+G`는 `editorHasDefinitionProvider`를 달아서,
    언어 서버가 없는 자리에서는 **애초에 그 키를 주장하지 않음.**
 4. **모든 바인딩이 `config.assist.keymap.enabled`를 달고 있음.** 스위치 하나로 전부
