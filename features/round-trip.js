@@ -139,17 +139,41 @@ function toNameHit(symbol) {
   const name = bareName(symbol.name || '');
   const qualified =
     symbol.containerName && !name.includes('::') ? `${symbol.containerName}::${name}` : name;
-  return { kind: 'name', label: qualified, loc: symbol.location };
+  // Taken from the qualified name rather than containerName, so a server that
+  // spells the class into the name itself groups the same way as one that does not.
+  const container = qualified.includes('::') ? qualified.slice(0, qualified.lastIndexOf('::')) : '';
+  return { kind: 'name', label: qualified, container, loc: symbol.location };
 }
 
 /** @param {vscode.TextDocument} document @param {vscode.Position} pos */
 async function byName(document, pos) {
   const { word, symbols } = await searchSymbols(document, pos);
   if (!word) return [];
-  return symbols
-    .filter((symbol) => carriesName(symbol, word))
-    .slice(0, MAX_BY_NAME)
-    .map(toNameHit);
+  // Not capped here: the entry that tells gather() which namespace is meant can
+  // sit anywhere in the list, and the cap belongs after that filter.
+  return symbols.filter((symbol) => carriesName(symbol, word)).map(toNameHit);
+}
+
+/** @param {vscode.Location} a @param {vscode.Location} b */
+function sameLine(a, b) {
+  return a.uri.toString() === b.uri.toString() && a.range.start.line === b.range.start.line;
+}
+
+/**
+ * A name alone does not say which namespace or class is meant - "area" is
+ * Shape::area and Circle::area, and a project with a guide:: namespace has a
+ * dozen of everything. But the index entry sitting where a provider landed, or
+ * where the cursor already is, is the symbol actually asked about, and its
+ * container is the one to keep. When no entry sits at any of those places there
+ * is nothing to go on, and every name stays.
+ * @param {{container: string, loc: vscode.Location}[]} names
+ * @param {vscode.Location[]} anchors
+ */
+function sameContainer(names, anchors) {
+  const containers = new Set(
+    names.filter((hit) => anchors.some((anchor) => sameLine(hit.loc, anchor))).map((hit) => hit.container),
+  );
+  return containers.size === 0 ? names : names.filter((hit) => containers.has(hit.container));
 }
 
 /**
@@ -163,22 +187,36 @@ async function byName(document, pos) {
  */
 async function gather(document, pos, options) {
   const uri = document.uri;
-  const queries = options.steps.map((step) => ask(step, uri, pos));
-  if (options.searchByName) queries.push(byName(document, pos));
+  const [answered, named] = await Promise.all([
+    Promise.all(options.steps.map((step) => ask(step, uri, pos))),
+    options.searchByName ? byName(document, pos) : [],
+  ]);
 
   const seen = new Map();
-  for (const hit of (await Promise.all(queries)).flat()) {
-    if (isHere(hit.loc, uri, pos)) continue;
+  const add = (hit) => {
+    if (isHere(hit.loc, uri, pos)) return;
     // Two sources pointing at one place is one destination. The first source in
     // the configured order gets to name it, which keeps a provider's label -
     // "Definition" - ahead of the name search's bare symbol name.
     if (!seen.has(key(hit))) seen.set(key(hit), hit);
-  }
+  };
+  const resolved = answered.flat();
+  resolved.forEach(add);
+
+  // Providers resolved the symbol; the name search only guessed at it. Once the
+  // providers alone offer a choice, the guesses only bury it - clangd answers a
+  // call site with both the definition and the declaration, and a name shared
+  // across namespaces used to put a dozen rows on top of those two. The name
+  // search stays for the servers that answer with one place or none.
+  if (seen.size >= 2) return [...seen.values()];
+  const anchors = [...resolved.map((hit) => hit.loc), new vscode.Location(uri, pos)];
+  sameContainer(named, anchors).slice(0, MAX_BY_NAME).forEach(add);
   return [...seen.values()];
 }
 
 /**
- * "Go to the body" is the move you want most of the time, and the body is the
+ * Resolved answers always come before name guesses. Within each, "go to the
+ * body" is the move you want most of the time, and the body is the
  * one that is not in a header. That single test puts the .cpp definition above
  * the .h declaration for a plain function, and the override in the .cpp above
  * the base declaration for a virtual one - one answer for two cases that would
@@ -190,8 +228,13 @@ async function gather(document, pos, options) {
 function ranked(hits, steps) {
   const order = (kind) => (steps.indexOf(kind) < 0 ? steps.length : steps.indexOf(kind));
   return hits
-    .map((hit) => ({ hit, header: HEADER.test(hit.loc.uri.path) ? 1 : 0, order: order(hit.kind) }))
-    .sort((a, b) => a.header - b.header || a.order - b.order)
+    .map((hit) => ({
+      hit,
+      guess: hit.kind === 'name' ? 1 : 0,
+      header: HEADER.test(hit.loc.uri.path) ? 1 : 0,
+      order: order(hit.kind),
+    }))
+    .sort((a, b) => a.guess - b.guess || a.header - b.header || a.order - b.order)
     .map((entry) => entry.hit);
 }
 

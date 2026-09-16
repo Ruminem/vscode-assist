@@ -23,18 +23,25 @@ nobody has run them.
 ## The round trip
 
 VS Code ships `Go to Definition`, `Go to Declaration` and `Go to Implementation`
-as three one-way commands on three keys. `Alt+G` asks all of them at once, adds
-whatever the workspace symbol index has under the same name, and drops every
+as three one-way commands on three keys. `Alt+G` asks all of them at once and drops every
 answer that points at the place the cursor already is. One place left is a
 jump; several open a small menu at the cursor, with the one outside a header
 first.
+
+When those answers leave fewer than two places, it also looks the name up in
+the workspace symbol index. Those rows are guesses - an index knows names, not
+which of them you meant - so they only fill in for a server that answered with
+one place or none, they keep only the namespace or class of the symbol the
+providers landed on (or the cursor stands on), and they always sit below the
+answers the providers resolved. A name shared across namespaces used to put a
+dozen of them on top of the two rows that mattered.
 
 | Where the cursor is | Where you land |
 | --- | --- |
 | a call site | a menu: the definition in the `.cpp` first, the declaration in the header next |
 | the declaration, in a header | the definition in the `.cpp` |
 | the definition, in a `.cpp` | the declaration in the header |
-| inside a member function's body | a menu: the declarations that carry that name |
+| inside a member function's body | the declaration in the header |
 | a virtual, over its base | the override |
 
 That table was measured with Microsoft's C/C++ extension, which answers most

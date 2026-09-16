@@ -21,7 +21,7 @@ Put the cursor on the name and press `Alt+G`.
 | 1 | `main.cpp:11` | `totalArea` | **picker** - `Definition shape.cpp:13` first, `By name · totalArea shape.h:24` second |
 | 2 | `shape.h:24` | `totalArea` | jump to `shape.cpp:13`, no picker |
 | 3 | `shape.cpp:13` | `totalArea` | jump to `shape.h:24`, no picker |
-| 4 | `shape.cpp:8` | `area` | **picker** - `By name · Shape::area`, `By name · Circle::area` |
+| 4 | `shape.cpp:8` | `area` | jump to `shape.h:17` (`Circle::area`), no picker |
 | 5 | `shape.h:10` | `area` | jump to `shape.cpp:8`, no picker |
 
 Two of those are the ones worth re-running after any change:
@@ -34,7 +34,8 @@ Two of those are the ones worth re-running after any change:
   body, definition and typeDefinition both point at that same body and there is
   no declaration provider on cpptools at all, so subtracting the cursor's own
   position leaves nothing. If row 4 says "nowhere to go from here", the name
-  search is gone again.
+  search is gone again. If it offers `Shape::area` as well, the namespace
+  filter found no index entry on the cursor's line to take the class from.
 
 ## When a row is wrong
 
