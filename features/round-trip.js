@@ -164,16 +164,17 @@ function sameLine(a, b) {
  * Shape::area and Circle::area, and a project with a guide:: namespace has a
  * dozen of everything. But the index entry sitting where a provider landed, or
  * where the cursor already is, is the symbol actually asked about, and its
- * container is the one to keep. When no entry sits at any of those places there
- * is nothing to go on, and every name stays.
+ * container is the one to keep. When no entry sits at any of those places the
+ * namespace cannot be told, and `unknown` decides what is left.
  * @param {{container: string, loc: vscode.Location}[]} names
  * @param {vscode.Location[]} anchors
+ * @param {{container: string, loc: vscode.Location}[]} unknown
  */
-function sameContainer(names, anchors) {
+function sameContainer(names, anchors, unknown) {
   const containers = new Set(
     names.filter((hit) => anchors.some((anchor) => sameLine(hit.loc, anchor))).map((hit) => hit.container),
   );
-  return containers.size === 0 ? names : names.filter((hit) => containers.has(hit.container));
+  return containers.size === 0 ? unknown : names.filter((hit) => containers.has(hit.container));
 }
 
 /**
@@ -210,7 +211,10 @@ async function gather(document, pos, options) {
   // search stays for the servers that answer with one place or none.
   if (seen.size >= 2) return [...seen.values()];
   const anchors = [...resolved.map((hit) => hit.loc), new vscode.Location(uri, pos)];
-  sameContainer(named, anchors).slice(0, MAX_BY_NAME).forEach(add);
+  // A provider that found the symbol at all found the right one, and a name
+  // from an unknown namespace can only be a different symbol that happens to
+  // share it. Only when nothing was found do those names beat an empty answer.
+  sameContainer(named, anchors, seen.size > 0 ? [] : named).slice(0, MAX_BY_NAME).forEach(add);
   return [...seen.values()];
 }
 

@@ -32,7 +32,8 @@ When those answers leave fewer than two places, it also looks the name up in
 the workspace symbol index. Those rows are guesses - an index knows names, not
 which of them you meant - so they only fill in for a server that answered with
 one place or none, they keep only the namespace or class of the symbol the
-providers landed on (or the cursor stands on), and they always sit below the
+providers landed on (or the cursor stands on) - when that cannot be told and a
+provider found anything at all, there are none - and they always sit below the
 answers the providers resolved. A name shared across namespaces used to put a
 dozen of them on top of the two rows that mattered.
 
