@@ -42,7 +42,9 @@ override there, so it is labelled **Override**. The other direction has no
 request of its own, but clangd answers a definition request made on the
 `override` keyword with the virtual being overridden - so when the line the
 cursor or a provider landed on spells `override` or `final`, `Alt+G` asks
-there too and adds the answer as **Base virtual**. Only that first line is
+there too and adds the answer as **Base virtual**. On the base itself that same
+question tells the overrides' declarations apart from the base's own, and they
+are marked **Override** as well. Only that first line is
 read; a signature wrapped before the keyword gets no base row.
 
 | Where the cursor is | Where you land |

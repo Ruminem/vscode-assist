@@ -170,12 +170,15 @@ async function byName(document, pos) {
  * The base of an override. clangd answers definition at the `override` keyword
  * with the virtual it overrides (measured on clangd 22), so find that keyword on
  * the lines already known to hold this symbol - the cursor's own, and wherever
- * the providers landed - and ask there.
+ * the providers landed - and ask there. When the base that comes back is where
+ * the cursor stands, the line asked from is not the cursor's symbol but another
+ * override of it, and it is marked as one - on a base, clangd's declaration
+ * answer lists the overrides' declarations with nothing to tell them apart.
  * ponytail: only the line the declaration starts on; a signature wrapped before
  * `override` has no base row. Scan to the `;` if that turns out common.
- * @param {vscode.Location[]} places
+ * @param {vscode.Location[]} places @param {vscode.Uri} uri @param {vscode.Position} pos
  */
-async function bases(places) {
+async function bases(places, uri, pos) {
   const lines = new Map();
   for (const place of places) lines.set(`${place.uri.toString()}:${place.range.start.line}`, place);
   const found = await Promise.all(
@@ -186,7 +189,9 @@ async function bases(places) {
         const match = OVERRIDE.exec(text.slice(place.range.start.character));
         if (!match) return [];
         const at = place.range.start.translate(0, match.index);
-        return (await ask('definition', place.uri, at)).map((hit) => ({ ...hit, role: 'base' }));
+        const found = await ask('definition', place.uri, at);
+        if (found.some((hit) => isHere(hit.loc, uri, pos))) return [{ kind: 'declaration', role: 'override', loc: place }];
+        return found.map((hit) => ({ ...hit, role: 'base' }));
       } catch {
         return [];
       }
@@ -239,8 +244,11 @@ async function gather(document, pos, options) {
     if (isHere(hit.loc, uri, pos)) return;
     // Two sources pointing at one place is one destination. The first source in
     // the configured order gets to name it, which keeps a provider's label -
-    // "Definition" - ahead of the name search's bare symbol name.
-    if (!seen.has(key(hit))) seen.set(key(hit), hit);
+    // "Definition" - ahead of the name search's bare symbol name. A role beats
+    // that order: on a base virtual clangd's definition answer already lists the
+    // overrides, and they should still read as overrides.
+    const known = seen.get(key(hit));
+    if (!known || (hit.role && !known.role)) seen.set(key(hit), hit);
   };
   const cpp = CPP.test(document.languageId);
   const resolved = answered
@@ -248,7 +256,7 @@ async function gather(document, pos, options) {
     .map((hit) => (cpp && hit.kind === 'implementation' ? { ...hit, role: 'override' } : hit));
   // Asked after the providers because it needs their answers to know where
   // the declaration is. Only a line that spells `override` costs a request.
-  if (cpp) resolved.push(...(await bases([new vscode.Location(uri, pos), ...resolved.map((hit) => hit.loc)])));
+  if (cpp) resolved.push(...(await bases([new vscode.Location(uri, pos), ...resolved.map((hit) => hit.loc)], uri, pos)));
   resolved.forEach(add);
 
   // Providers resolved the symbol; the name search only guessed at it. Once the

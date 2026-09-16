@@ -1,15 +1,15 @@
 #include "shape.h"
 
-#include <cstdio>
-
 int main() {
   Circle a(1.0);
-  Circle b(2.0);
+  Square b(2.0);
   const Shape* shapes[] = {&a, &b};
 
   // [1] call site - offers the definition and the declaration
   double sum = totalArea(shapes, 2);
 
-  std::printf("%f\n", sum);
-  return 0;
+  // [8] namespaced call site - geo's definition and declaration, nothing of ui's
+  double big = geo::scale(sum, 2.0);
+
+  return big > sum ? 0 : 1;
 }

@@ -16,26 +16,37 @@ way for the fixture to break.
 
 Put the cursor on the name and press `Alt+G`.
 
+Expected rows are what clangd 22 answers. Each position is marked with a
+`// [n]` comment on the line above.
+
 | | file:line | on | expect |
 |---|---|---|---|
-| 1 | `main.cpp:11` | `totalArea` | **picker** - `Definition shape.cpp:13` first, `By name · totalArea shape.h:24` second |
-| 2 | `shape.h:24` | `totalArea` | jump to `shape.cpp:13`, no picker |
-| 3 | `shape.cpp:13` | `totalArea` | jump to `shape.h:24`, no picker |
-| 4 | `shape.cpp:8` | `area` | **picker** - the declaration `shape.h:17` first, `Base virtual shape.h:10` second (clangd) |
-| 5 | `shape.h:10` | `area` | jump to `shape.cpp:8`, no picker |
+| 1 | `main.cpp:9` | `totalArea` | **menu** - `Definition shape.cpp:18`, `Declaration shape.h:35` |
+| 2 | `shape.h:35` | `totalArea` | jump to `shape.cpp:18` |
+| 3 | `shape.cpp:18` | `totalArea` | jump to `shape.h:35` |
+| 4 | `shape.cpp:7` | `area` | **menu** - `Definition shape.h:18`, `Base virtual shape.h:10` |
+| 5 | `shape.h:10` | `area` | **menu** - `Override` four times: `shape.cpp:13`, `shape.cpp:7`, `shape.h:28`, `shape.h:18` |
+| 6 | `shape.h:18` | `area` | **menu** - `Definition shape.cpp:7`, `Base virtual shape.h:10` |
+| 7 | `shape.cpp:23` | `area` | **menu** - `Override shape.cpp:13`, `Override shape.cpp:7`, `Definition shape.h:10` |
+| 8 | `main.cpp:12` | `scale` | **menu** - `Definition shape.cpp:29`, `Declaration shape.h:40`, and no `ui::scale` |
 
-Two of those are the ones worth re-running after any change:
+What each one guards:
 
-- **1** is the only place the picker exists at all. cpptools answers a call site
-  with exactly one location, and one location cannot be offered as a choice, so
-  the second row only exists because the workspace symbol index supplies it. If
-  row 1 stops showing a picker, `searchByName` has stopped working.
-- **4** is the position no provider can answer. Standing in a member function's
-  body, definition and typeDefinition both point at that same body and there is
-  no declaration provider on cpptools at all, so subtracting the cursor's own
-  position leaves nothing. If row 4 says "nowhere to go from here", the name
-  search is gone again. If it offers `Shape::area` as well, the namespace
-  filter found no index entry on the cursor's line to take the class from.
+- **1-3** are the plain round trip: a call site offers both sides, and each side
+  goes straight to the other.
+- **4-7** are virtuals. clangd answers a definition request made on the
+  `override` keyword with the base, which is where **Base virtual** comes from
+  (4, 6). On the base itself (5) the definition and declaration answers list the
+  overrides; the declarations are marked **Override** because asking from their
+  `override` keyword comes back to the cursor. If 5 shows `Definition` or
+  `Declaration` rows, an override label lost to the provider order.
+- **8** is the namespace filter. `geo::scale` and `ui::scale` share a name, and
+  since the providers already answered twice no name search runs at all. On a
+  server that answers once, the name rows must still stay inside `geo`.
+
+On cpptools the rows differ - it answers most positions once, so the name search
+fills in. `Assist: Explain what the round trip sees here` shows which source
+said what.
 
 ## When a row is wrong
 
