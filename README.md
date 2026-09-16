@@ -204,6 +204,9 @@ Keyboard Shortcuts, search for `Assist`. Or in `keybindings.json`:
 To get back where you came from, VS Code's own `Go Back` (`Alt+Left`) covers it —
 these jumps land in the same navigation history.
 
+When the file a jump lands in is already showing in another split, the jump goes
+to that split instead of opening the file again over the one you were in.
+
 ## Developing
 
 No build step and no dependencies. Clone it, open it, press `F5`; a second

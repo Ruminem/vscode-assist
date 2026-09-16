@@ -370,7 +370,15 @@ function describe(hit) {
 /** @param {vscode.Location} loc */
 async function reveal(loc) {
   const doc = await vscode.workspace.openTextDocument(loc.uri);
-  const editor = await vscode.window.showTextDocument(doc);
+  // A file already showing in another split is jumped to there, not opened again
+  // over the file the jump started from.
+  const key = loc.uri.toString();
+  const active = vscode.window.activeTextEditor;
+  const shown =
+    active && active.document.uri.toString() === key
+      ? active
+      : vscode.window.visibleTextEditors.find((e) => e.document.uri.toString() === key);
+  const editor = await vscode.window.showTextDocument(doc, shown && shown.viewColumn);
   const start = loc.range.start;
   editor.selection = new vscode.Selection(start, start);
   editor.revealRange(loc.range, vscode.TextEditorRevealType.InCenterIfOutsideViewport);
