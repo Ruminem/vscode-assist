@@ -122,6 +122,12 @@
             "default": true,
             "order": 2,
             "markdownDescription": "%config.roundTrip.pickWhenAmbiguous%"
+          },
+          "assist.roundTrip.textSearch": {
+            "type": "boolean",
+            "default": true,
+            "order": 3,
+            "markdownDescription": "%config.roundTrip.textSearch%"
           }
         }
       },

@@ -27,5 +27,8 @@
   "Several processes are named {0}. Pick one to reattach to.": "{0} 프로세스가 여러 개입니다. 다시 연결할 프로세스를 고르세요.",
   "Round trip: waiting for the language server": "왕복: 언어 서버 응답을 기다리는 중",
   "Override": "재정의",
-  "Base virtual": "기반 가상 함수"
+  "Base virtual": "기반 가상 함수",
+  "clangd index: no compile_commands.json found, so only open files are indexed": "clangd 인덱스: compile_commands.json이 없어 열린 파일만 인덱싱됨",
+  "clangd index: {0}% ({1}/{2} files)": "clangd 인덱스: {0}% ({1}/{2}개 파일)",
+  "Text guess {0}% · {1}": "텍스트 추측 {0}% · {1}"
 }

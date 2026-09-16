@@ -16,6 +16,7 @@ cpptools, rust-analyzer, tsserver) 몫임. 이 성질도 깨지 않음 — 깨�
 |---|---|
 | `extension.js` | 진입점. `features/` 목록을 돌며 명령을 등록함. 그 외 로직 없음 |
 | `features/round-trip.js` | `Alt+G`. provider를 전부 물어보고, 커서가 이미 있는 자리를 뺀 뒤, 하나면 점프하고 여럿이면 목록을 냄 |
+| `features/text-guess.js` | `Alt+G`의 보조. clangd 인덱스 진행률(`.cache/clangd/index` 파일 수 ÷ `compile_commands.json` 항목 수)과, 인덱스가 덜 됐을 때만 도는 텍스트 추측(VS Code 내장 ripgrep). 명령 없음 — `round-trip.js`가 부름. 결과를 저장하지 않으므로 "인덱스를 갖지 않음"은 그대로임 |
 | `features/function-step.js` | `Ctrl+Shift+↑/↓`. 언어 서버의 문서 심볼에서 함수·메서드·생성자 이름 줄만 골라 이전·다음으로 이동 |
 | `features/symbol-search.js` | `Shift+Alt+S`. 자체 심볼 검색 창. 서버에서 빈 검색어 결과와 입력 결과를 받아 이 확장이 직접 fuzzy로 거름. 창의 버튼으로 fuzzy를 켜고 끔 |
 | `features/process-attach.js` | `Ctrl+Alt+P`·`Shift+Alt+P`. C/C++ 확장의 프로세스 선택기(`extension.pickNativeProcess`)와 `cppvsdbg` 디버거로 연결·다시 연결. 다시 연결은 마지막 실행 파일 이름을 `tasklist`로 찾음. Windows 전용 |
@@ -30,7 +31,7 @@ cpptools, rust-analyzer, tsserver) 몫임. 이 성질도 깨지 않음 — 깨�
 | `NEXT.md` | 세션 인수인계 노트. VSIX에는 안 들어감 |
 
 명령: `assist.roundTrip` `assist.roundTrip.explain` `assist.nextFunction` `assist.previousFunction` `assist.searchSymbols` `assist.attachToProcess` `assist.reattachToProcess`
-설정: `assist.keymap.enabled` `assist.roundTrip.providers` `assist.roundTrip.searchByName` `assist.roundTrip.pickWhenAmbiguous` `assist.symbolSearch.fuzzy`
+설정: `assist.keymap.enabled` `assist.roundTrip.providers` `assist.roundTrip.searchByName` `assist.roundTrip.pickWhenAmbiguous` `assist.roundTrip.textSearch` `assist.symbolSearch.fuzzy`
 
 ## 기능을 더하는 비용은 두 갈래임
 

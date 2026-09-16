@@ -1,6 +1,7 @@
 'use strict';
 
 const vscode = require('vscode');
+const { indexProgress, isComplete, describeProgress, textGuesses } = require('./text-guess');
 
 // Every one of these is served by whatever language server is already installed
 // - clangd, cpptools, rust-analyzer, tsserver. This feature owns no analysis of
@@ -42,6 +43,13 @@ const HEADER = /\.(h|hh|hpp|hxx|inl|ipp)$/i;
 // index will happily answer with hundreds. The picker is not a search results
 // page, so cut it off well before it becomes one.
 const MAX_BY_NAME = 12;
+
+// How long to wait on the language server while its index is incomplete
+// before settling for text guesses.
+const INDEXING_WAIT_MS = 2000;
+
+// Text guesses shown at most, the most similar ones.
+const MAX_TEXT = 5;
 
 /**
  * Providers answer with either a Location or a LocationLink, and which one you
@@ -234,10 +242,17 @@ function sameContainer(names, anchors, unknown) {
  */
 async function gather(document, pos, options) {
   const uri = document.uri;
-  const [answered, named] = await Promise.all([
+  const asked = Promise.all([
     Promise.all(options.steps.map((step) => ask(step, uri, pos))),
     options.searchByName ? byName(document, pos) : [],
   ]);
+  // While clangd is still indexing it can sit on a request for as long as it
+  // takes to parse the file, and the menu cannot open before every answer is
+  // in. Past a short wait the text guesses below are worth more than silence.
+  const indexing = !isComplete(options.progress);
+  const [answered, named] = indexing
+    ? await Promise.race([asked, new Promise((resolve) => setTimeout(() => resolve([[], []]), INDEXING_WAIT_MS))])
+    : await asked;
 
   const seen = new Map();
   const add = (hit) => {
@@ -264,13 +279,29 @@ async function gather(document, pos, options) {
   // call site with both the definition and the declaration, and a name shared
   // across namespaces used to put a dozen rows on top of those two. The name
   // search stays for the servers that answer with one place or none.
-  if (seen.size >= 2) return [...seen.values()];
+  const certain = seen.size;
+  if (certain >= 2) return [...seen.values()];
   const anchors = [...resolved.map((hit) => hit.loc), new vscode.Location(uri, pos)];
   // A provider that found the symbol at all found the right one, and a name
   // from an unknown namespace can only be a different symbol that happens to
   // share it. Only when nothing was found do those names beat an empty answer.
   sameContainer(named, anchors, seen.size > 0 ? [] : named).slice(0, MAX_BY_NAME).forEach(add);
+
+  // The last resort, and the only one that reads files: text that looks like a
+  // definition. Only while clangd's index is incomplete - once it is done, a
+  // name the server cannot find is not there - and textGuesses() carries the
+  // rest of the limits.
+  if (options.textSearch && cpp && indexing) {
+    const taken = new Set([...seen.values(), { loc: new vscode.Location(uri, pos) }].map((hit) => lineOf(hit.loc)));
+    const guesses = await textGuesses(document, pos, resolved.map((hit) => hit.loc));
+    guesses.filter((hit) => !taken.has(lineOf(hit.loc))).slice(0, MAX_TEXT).forEach(add);
+  }
   return [...seen.values()];
+}
+
+/** @param {vscode.Location} loc */
+function lineOf(loc) {
+  return `${loc.uri.toString()}:${loc.range.start.line}`;
 }
 
 /**
@@ -289,7 +320,7 @@ function ranked(hits, steps) {
   return hits
     .map((hit) => ({
       hit,
-      guess: hit.kind === 'name' ? 1 : 0,
+      guess: hit.kind === 'text' ? 2 : hit.kind === 'name' ? 1 : 0,
       header: HEADER.test(hit.loc.uri.path) ? 1 : 0,
       order: order(hit.kind),
     }))
@@ -312,7 +343,11 @@ function where(loc) {
  */
 function describe(hit) {
   const source =
-    hit.kind === 'name' ? vscode.l10n.t('By name · {0}', hit.label) : LABELS[hit.role || hit.kind] || hit.kind;
+    hit.kind === 'name'
+      ? vscode.l10n.t('By name · {0}', hit.label)
+      : hit.kind === 'text'
+        ? vscode.l10n.t('Text guess {0}% · {1}', hit.similarity, hit.label)
+        : LABELS[hit.role || hit.kind] || hit.kind;
   return `${source}  —  ${where(hit.loc)}`;
 }
 
@@ -333,9 +368,12 @@ const MENU_KIND = vscode.CodeActionKind.Empty.append('assist.roundTrip');
 let offered = null;
 let menuProvider = null;
 
-/** @param {vscode.TextDocument} document @param {{kind: string, loc: vscode.Location}[]} hits */
-function pick(document, hits) {
-  offered = { uri: document.uri.toString(), hits };
+/**
+ * @param {vscode.TextDocument} document @param {{kind: string, loc: vscode.Location}[]} hits
+ * @param {string} note shown as a last row that goes nowhere - the index progress
+ */
+function pick(document, hits, note) {
+  offered = { uri: document.uri.toString(), hits, note };
   // ponytail: registered on first use and never disposed - it lives exactly as
   // long as the extension host. Move to activate() if features grow a lifecycle.
   if (!menuProvider) {
@@ -345,11 +383,13 @@ function pick(document, hits) {
         provideCodeActions(doc, _range, context) {
           if (!offered || doc.uri.toString() !== offered.uri) return;
           if (!context.only || !context.only.contains(MENU_KIND)) return;
-          return offered.hits.map((hit) => {
+          const actions = offered.hits.map((hit) => {
             const action = new vscode.CodeAction(describe(hit), MENU_KIND);
             action.command = { title: 'Go', command: 'assist.roundTrip.go', arguments: [hit.loc] };
             return action;
           });
+          if (offered.note) actions.push(new vscode.CodeAction(offered.note, MENU_KIND));
+          return actions;
         },
       },
       { providedCodeActionKinds: [MENU_KIND] },
@@ -365,11 +405,12 @@ function pick(document, hits) {
  * The menu cannot open until every source has answered, and it cannot be
  * filled in after it opens, so a slow server is a key press that seems to do
  * nothing. A spinner in the status bar is the only sign that it did.
- * @template T @param {() => Promise<T>} task @returns {Promise<T>}
+ * @template T @param {() => Promise<T>} task @param {string} [note] @returns {Promise<T>}
  */
-function busy(task) {
+function busy(task, note = '') {
+  const title = vscode.l10n.t('Round trip: waiting for the language server');
   return vscode.window.withProgress(
-    { location: vscode.ProgressLocation.Window, title: vscode.l10n.t('Round trip: waiting for the language server') },
+    { location: vscode.ProgressLocation.Window, title: note ? `${title} · ${note}` : title },
     task,
   );
 }
@@ -391,6 +432,7 @@ function settings() {
     steps: config.get('providers', ['definition', 'implementation', 'declaration']),
     searchByName: config.get('searchByName', true),
     pickWhenAmbiguous: config.get('pickWhenAmbiguous', true),
+    textSearch: config.get('textSearch', true),
   };
 }
 
@@ -399,19 +441,22 @@ async function roundTrip() {
   if (!editor) return;
 
   const pos = editor.selection.active;
-  const options = settings();
+  const progress = indexProgress(editor.document);
+  const options = { ...settings(), progress };
+  const note = isComplete(progress) ? '' : describeProgress(progress);
 
-  const targets = ranked(await busy(() => gather(editor.document, pos, options)), options.steps);
+  const targets = ranked(await busy(() => gather(editor.document, pos, options), note), options.steps);
   if (targets.length === 0) {
-    vscode.window.setStatusBarMessage(
-      `$(circle-slash) ${vscode.l10n.t('Round trip: nowhere to go from here')}`,
-      2000,
-    );
+    const nowhere = vscode.l10n.t('Round trip: nowhere to go from here');
+    vscode.window.setStatusBarMessage(`$(circle-slash) ${note ? `${nowhere} · ${note}` : nowhere}`, note ? 5000 : 2000);
     return;
   }
 
-  if (targets.length > 1 && options.pickWhenAmbiguous) {
-    await pick(editor.document, targets);
+  // A text guess is never jumped to on its own: it may be a different symbol
+  // that happens to share the name, and only a menu lets you see that first.
+  const guessed = targets.some((hit) => hit.kind === 'text');
+  if ((targets.length > 1 && options.pickWhenAmbiguous) || guessed) {
+    await pick(editor.document, targets, note);
     return;
   }
   await reveal(targets[0].loc);

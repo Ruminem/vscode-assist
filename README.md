@@ -44,7 +44,22 @@ request of its own, but clangd answers a definition request made on the
 cursor or a provider landed on spells `override` or `final`, `Alt+G` asks
 there too and adds the answer as **Base virtual**. On the base itself that same
 question tells the overrides' declarations apart from the base's own, and they
-are marked **Override** as well. Only that first line is
+are marked **Override** as well.
+
+Until clangd has indexed the project it only knows the files open in the
+editor, and without a `compile_commands.json` it never indexes anything else.
+For that stretch `Alt+G` adds **text guesses** in C/C++: lines that look like a
+definition of the name, found with the ripgrep VS Code already ships. They are
+not an index - nothing is kept once the menu closes. A guess never jumps on its
+own; up to five open the menu, each with a similarity percentage built from what
+a line of text can show (the header/source pair of what the server did find, a
+`geo::` qualifier against `namespace geo`, the argument count, a body rather
+than a `;`, the same folder), and the last row says how far the index has got,
+counted from the files clangd leaves in `.cache/clangd/index`. The search only
+runs while that index is incomplete and the server left fewer than two places to
+go, skips names shorter than three characters and keywords, and stops after 1.5
+seconds. While indexing, `Alt+G` also stops waiting on the server after two
+seconds instead of sitting on a parse. Only that first line is
 read; a signature wrapped before the keyword gets no base row.
 
 | Where the cursor is | Where you land |
@@ -175,6 +190,7 @@ only thing that can give it back.
 | `assist.roundTrip.providers` | `["definition", "implementation", "declaration"]` | Which providers `Alt+G` asks. The order only breaks ties. |
 | `assist.roundTrip.searchByName` | `true` | Also look the name up in the workspace symbol index. |
 | `assist.roundTrip.pickWhenAmbiguous` | `true` | Show a menu when several locations answer. |
+| `assist.roundTrip.textSearch` | `true` | While clangd's index is incomplete, add text guesses with a similarity percentage. |
 | `assist.symbolSearch.fuzzy` | `true` | Start `Shift+Alt+S` with fuzzy matching on. |
 
 ## Rebinding
