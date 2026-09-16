@@ -1,6 +1,7 @@
 'use strict';
 
 const vscode = require('vscode');
+const fs = require('fs');
 const { indexProgress, isComplete, describeProgress, textGuesses } = require('./text-guess');
 
 // Every one of these is served by whatever language server is already installed
@@ -175,6 +176,22 @@ async function byName(document, pos) {
 }
 
 /**
+ * One line of a file, without opening it as a document. openTextDocument does
+ * not only read: every language client sees the document open (the clangd
+ * extension sends didOpen for it, checked in its bundled client) and clangd
+ * then parses the whole file as if it were being edited - seconds per header
+ * in a large project, on every round trip that lands in one. A document that
+ * is already open is read from memory, anything else from disk.
+ * @param {vscode.Uri} uri @param {number} line
+ */
+async function lineText(uri, line) {
+  const open = vscode.workspace.textDocuments.find((doc) => doc.uri.toString() === uri.toString());
+  if (open) return line < open.lineCount ? open.lineAt(line).text : '';
+  if (uri.scheme !== 'file') return '';
+  return (await fs.promises.readFile(uri.fsPath, 'utf8')).split(/\r?\n/)[line] || '';
+}
+
+/**
  * The base of an override. clangd answers definition at the `override` keyword
  * with the virtual it overrides (measured on clangd 22), so find that keyword on
  * the lines already known to hold this symbol - the cursor's own, and wherever
@@ -192,8 +209,7 @@ async function bases(places, uri, pos) {
   const found = await Promise.all(
     [...lines.values()].map(async (place) => {
       try {
-        const doc = await vscode.workspace.openTextDocument(place.uri);
-        const text = doc.lineAt(place.range.start.line).text;
+        const text = await lineText(place.uri, place.range.start.line);
         const match = OVERRIDE.exec(text.slice(place.range.start.character));
         if (!match) return [];
         const at = place.range.start.translate(0, match.index);

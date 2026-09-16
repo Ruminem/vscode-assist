@@ -2,7 +2,7 @@
 'use strict';
 
 const vscode = require('vscode');
-const { execFile } = require('child_process');
+const { spawn } = require('child_process');
 const fs = require('fs');
 const path = require('path');
 
@@ -137,10 +137,6 @@ function ripgrep() {
 
 let running = null;
 
-// Files enclosing() has read during the current search, so fifty matches in one
-// file read it once. Cleared per search.
-const read = new Map();
-
 /**
  * Lines that look like a definition or declaration of `word`: a type keyword
  * before it, or a line that starts with a type and has the name right before
@@ -168,31 +164,73 @@ function textGuesses(document, pos, related) {
   for (const glob of GLOBS) args.push('-g', glob);
   args.push('-e', pattern, '--', folder.uri.fsPath);
 
-  return new Promise((resolve) => {
-    const child = execFile(rg, args, { timeout: SEARCH_MS, maxBuffer: 1024 * 1024 }, (_error, stdout) => {
-      if (running === child) running = null;
-      const guesses = [];
-      for (const line of String(stdout || '').split(/\r?\n/)) {
-        const match = /^(.*?):(\d+):(.*)$/.exec(line);
-        if (!match || /^\s*(return|else|case|throw|co_return|new|delete|goto)\b/.test(match[3])) continue;
-        // Land on the name, not on the start of the line the pattern matched from.
-        const column = Math.max(0, match[3].search(new RegExp(`\\b${word}\\b`)));
-        guesses.push({
-          kind: 'text',
-          label: match[3].trim().slice(0, 60),
-          text: match[3],
-          rest: match[3].slice(column + word.length),
-          loc: new vscode.Location(vscode.Uri.file(match[1]), new vscode.Position(Number(match[2]) - 1, column)),
-        });
-        if (guesses.length >= MAX_CANDIDATES) break;
-      }
-      read.clear();
-      const context = callSite(document.lineAt(pos.line).text, range ? range.start.character : 0, word);
-      for (const guess of guesses) guess.similarity = similarity(guess, context, document, related);
-      resolve(guesses.sort((a, b) => b.similarity - a.similarity));
-    });
+  const guesses = [];
+  const found = new Promise((resolve) => {
+    // Read as it arrives and stop ripgrep the moment there are enough
+    // candidates - waiting for it to exit would spend the whole time limit
+    // walking the rest of a large tree for matches nobody will see.
+    const child = spawn(rg, args, { stdio: ['ignore', 'pipe', 'ignore'] });
     running = child;
+    const timer = setTimeout(() => child.kill(), SEARCH_MS);
+    let pending = '';
+    child.stdout.setEncoding('utf8');
+    child.stdout.on('data', (chunk) => {
+      const lines = (pending + chunk).split(/\r?\n/);
+      pending = lines.pop();
+      for (const line of lines) {
+        if (guesses.length >= MAX_CANDIDATES) break;
+        const guess = toGuess(line, word);
+        if (guess) guesses.push(guess);
+      }
+      if (guesses.length >= MAX_CANDIDATES) child.kill();
+    });
+    child.on('error', () => resolve());
+    child.on('close', () => {
+      clearTimeout(timer);
+      const last = pending && guesses.length < MAX_CANDIDATES ? toGuess(pending, word) : null;
+      if (last) guesses.push(last);
+      if (running === child) running = null;
+      resolve();
+    });
   });
+
+  return found.then(async () => {
+    const context = callSite(document.lineAt(pos.line).text, range ? range.start.character : 0, word);
+    // The namespace signal needs the text above each match. Read each file once,
+    // off the extension host's thread, and only when there is a qualifier to check.
+    const texts = new Map();
+    if (context.qualifier) {
+      const files = [...new Set(guesses.map((guess) => guess.loc.uri.fsPath))];
+      await Promise.all(
+        files.map((file) =>
+          fs.promises.readFile(file, 'utf8').then(
+            (text) => texts.set(file, text.split(/\r?\n/)),
+            () => texts.set(file, []),
+          ),
+        ),
+      );
+    }
+    for (const guess of guesses) guess.similarity = similarity(guess, context, document, related, texts);
+    return guesses.sort((a, b) => b.similarity - a.similarity);
+  });
+}
+
+/**
+ * One line of ripgrep output as a guess, or null for a line that is not one.
+ * @param {string} line @param {string} word
+ */
+function toGuess(line, word) {
+  const match = /^(.*?):(\d+):(.*)$/.exec(line);
+  if (!match || /^\s*(return|else|case|throw|co_return|new|delete|goto)\b/.test(match[3])) return null;
+  // Land on the name, not on the start of the line the pattern matched from.
+  const column = Math.max(0, match[3].search(new RegExp(`\\b${word}\\b`)));
+  return {
+    kind: 'text',
+    label: match[3].trim().slice(0, 60),
+    text: match[3],
+    rest: match[3].slice(column + word.length),
+    loc: new vscode.Location(vscode.Uri.file(match[1]), new vscode.Position(Number(match[2]) - 1, column)),
+  };
 }
 
 /**
@@ -232,17 +270,9 @@ function arity(rest) {
  * definition that sits inside `namespace geo {` rather than spelling `geo::`.
  * ponytail: nearest opener, not the enclosing one - a namespace closed just
  * above still counts. Brace matching would fix it; a guess does not need it.
- * @param {string} file @param {number} line
+ * @param {string[]} lines @param {number} line
  */
-function enclosing(file, line) {
-  if (!read.has(file)) {
-    try {
-      read.set(file, fs.readFileSync(file, 'utf8').split(/\r?\n/));
-    } catch {
-      read.set(file, []);
-    }
-  }
-  const lines = read.get(file);
+function enclosing(lines, line) {
   for (let i = line - 1; i >= 0; i--) {
     const match = /^\s*(?:namespace|class|struct)\s+(\w+)[^;]*$/.exec(lines[i]);
     if (match) return match[1];
@@ -259,14 +289,15 @@ function enclosing(file, line) {
  * @param {{text: string, rest: string, loc: vscode.Location}} guess
  * @param {{qualifier: string | null, arity: number | null}} context
  * @param {vscode.TextDocument} document @param {vscode.Location[]} related
+ * @param {Map<string, string[]>} texts each guessed file's lines, when a qualifier needs them
  */
-function similarity(guess, context, document, related) {
+function similarity(guess, context, document, related, texts) {
   const file = guess.loc.uri.fsPath;
   const stem = (p) => path.basename(p).replace(/\.[^.]*$/, '');
   const signals = [
     // shape.h answered, shape.cpp guessed: the other half of the same pair.
     [3, [document.uri.fsPath, ...related.map((loc) => loc.uri.fsPath)].some((p) => p !== file && stem(p) === stem(file))],
-    [3, context.qualifier === null ? null : guess.text.includes(`${context.qualifier}::`) || enclosing(file, guess.loc.range.start.line) === context.qualifier],
+    [3, context.qualifier === null ? null : guess.text.includes(`${context.qualifier}::`) || enclosing(texts.get(file) || [], guess.loc.range.start.line) === context.qualifier],
     [2, context.arity === null ? null : arity(guess.rest) === context.arity],
     [1, !guess.text.trimEnd().endsWith(';')],
     [1, path.dirname(file) === path.dirname(document.uri.fsPath)],
