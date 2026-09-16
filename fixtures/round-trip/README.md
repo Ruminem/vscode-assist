@@ -7,10 +7,18 @@ Open **this folder** in the Extension Development Host, not the repository:
 code --extensionDevelopmentPath=<repo> --new-window fixtures/round-trip
 ```
 
-Needs a C++ language server installed (`ms-vscode.cpptools` or `clangd`). There
-is no `compile_commands.json` on purpose - three files with an include is the
-smallest thing a server will index, and adding a build system would only add a
-way for the fixture to break.
+Needs a C++ language server installed (`ms-vscode.cpptools` or `clangd`). For
+clangd, run this once first and restart clangd:
+
+```
+node fixtures/round-trip/make-compile-db.js
+```
+
+Without a `compile_commands.json` clangd indexes only the files open in the
+editor, so row 1 finds nothing in `shape.cpp` until that file has been opened.
+The database is not committed: clangd ignores an entry whose `directory` is
+relative, and an absolute one differs per machine. The script writes it with
+this folder's path, and `.gitignore` keeps it out.
 
 ## What to press
 

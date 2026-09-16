@@ -2,3 +2,4 @@ node_modules/
 *.vsix
 
 .cache/
+fixtures/round-trip/compile_commands.json
