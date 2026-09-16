@@ -19,7 +19,19 @@ const LABELS = {
   declaration: vscode.l10n.t('Declaration'),
   implementation: vscode.l10n.t('Implementation'),
   typeDefinition: vscode.l10n.t('Type definition'),
+  // Roles rather than providers: what a C++ answer means about a virtual.
+  override: vscode.l10n.t('Override'),
+  base: vscode.l10n.t('Base virtual'),
 };
+
+// In C++ an implementation is always an override - clangd answers that request
+// only for virtuals. Other languages keep the generic word, because there an
+// implementation can be a class implementing an interface.
+const CPP = /^(c|cpp|cuda-cpp|objective-c|objective-cpp)$/;
+
+// The one spelling a C++ override has. Nothing looks further than the line
+// the declaration starts on.
+const OVERRIDE = /\b(override|final)\b/;
 
 // Used only to sort, never to decide what a file is. Anything that does not
 // match counts as a source file, which is the right default for the languages
@@ -154,6 +166,35 @@ async function byName(document, pos) {
   return symbols.filter((symbol) => carriesName(symbol, word)).map(toNameHit);
 }
 
+/**
+ * The base of an override. clangd answers definition at the `override` keyword
+ * with the virtual it overrides (measured on clangd 22), so find that keyword on
+ * the lines already known to hold this symbol - the cursor's own, and wherever
+ * the providers landed - and ask there.
+ * ponytail: only the line the declaration starts on; a signature wrapped before
+ * `override` has no base row. Scan to the `;` if that turns out common.
+ * @param {vscode.Location[]} places
+ */
+async function bases(places) {
+  const lines = new Map();
+  for (const place of places) lines.set(`${place.uri.toString()}:${place.range.start.line}`, place);
+  const found = await Promise.all(
+    [...lines.values()].map(async (place) => {
+      try {
+        const doc = await vscode.workspace.openTextDocument(place.uri);
+        const text = doc.lineAt(place.range.start.line).text;
+        const match = OVERRIDE.exec(text.slice(place.range.start.character));
+        if (!match) return [];
+        const at = place.range.start.translate(0, match.index);
+        return (await ask('definition', place.uri, at)).map((hit) => ({ ...hit, role: 'base' }));
+      } catch {
+        return [];
+      }
+    }),
+  );
+  return found.flat();
+}
+
 /** @param {vscode.Location} a @param {vscode.Location} b */
 function sameLine(a, b) {
   return a.uri.toString() === b.uri.toString() && a.range.start.line === b.range.start.line;
@@ -201,7 +242,13 @@ async function gather(document, pos, options) {
     // "Definition" - ahead of the name search's bare symbol name.
     if (!seen.has(key(hit))) seen.set(key(hit), hit);
   };
-  const resolved = answered.flat();
+  const cpp = CPP.test(document.languageId);
+  const resolved = answered
+    .flat()
+    .map((hit) => (cpp && hit.kind === 'implementation' ? { ...hit, role: 'override' } : hit));
+  // Asked after the providers because it needs their answers to know where
+  // the declaration is. Only a line that spells `override` costs a request.
+  if (cpp) resolved.push(...(await bases([new vscode.Location(uri, pos), ...resolved.map((hit) => hit.loc)])));
   resolved.forEach(add);
 
   // Providers resolved the symbol; the name search only guessed at it. Once the
@@ -257,7 +304,7 @@ function where(loc) {
  */
 function describe(hit) {
   const source =
-    hit.kind === 'name' ? vscode.l10n.t('By name · {0}', hit.label) : LABELS[hit.kind] || hit.kind;
+    hit.kind === 'name' ? vscode.l10n.t('By name · {0}', hit.label) : LABELS[hit.role || hit.kind] || hit.kind;
   return `${source}  —  ${where(hit.loc)}`;
 }
 

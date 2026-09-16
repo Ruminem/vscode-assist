@@ -21,7 +21,7 @@ Put the cursor on the name and press `Alt+G`.
 | 1 | `main.cpp:11` | `totalArea` | **picker** - `Definition shape.cpp:13` first, `By name · totalArea shape.h:24` second |
 | 2 | `shape.h:24` | `totalArea` | jump to `shape.cpp:13`, no picker |
 | 3 | `shape.cpp:13` | `totalArea` | jump to `shape.h:24`, no picker |
-| 4 | `shape.cpp:8` | `area` | jump to `shape.h:17` (`Circle::area`), no picker |
+| 4 | `shape.cpp:8` | `area` | **picker** - the declaration `shape.h:17` first, `Base virtual shape.h:10` second (clangd) |
 | 5 | `shape.h:10` | `area` | jump to `shape.cpp:8`, no picker |
 
 Two of those are the ones worth re-running after any change:

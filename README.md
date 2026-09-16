@@ -37,13 +37,21 @@ provider found anything at all, there are none - and they always sit below the
 answers the providers resolved. A name shared across namespaces used to put a
 dozen of them on top of the two rows that mattered.
 
+In C++, virtuals get rows of their own. An implementation answer is always an
+override there, so it is labelled **Override**. The other direction has no
+request of its own, but clangd answers a definition request made on the
+`override` keyword with the virtual being overridden - so when the line the
+cursor or a provider landed on spells `override` or `final`, `Alt+G` asks
+there too and adds the answer as **Base virtual**. Only that first line is
+read; a signature wrapped before the keyword gets no base row.
+
 | Where the cursor is | Where you land |
 | --- | --- |
 | a call site | a menu: the definition in the `.cpp` first, the declaration in the header next |
 | the declaration, in a header | the definition in the `.cpp` |
 | the definition, in a `.cpp` | the declaration in the header |
-| inside a member function's body | the declaration in the header |
-| a virtual, over its base | the override |
+| inside a member function's body | the declaration in the header; for an override, a menu that adds the base virtual |
+| a virtual, over its base | the override, or a menu of them when there are several |
 
 That table was measured with Microsoft's C/C++ extension, which answers most
 positions with exactly one location - the name search is what supplies the
