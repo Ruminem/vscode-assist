@@ -48,18 +48,38 @@ function findDatabase(document, folder) {
   }
 }
 
-// A real database runs to megabytes; read it again only when it changes.
-let cached = { db: '', mtime: 0, names: [] };
+// Both reads below block the extension host, and on a large project they are
+// not free - measured with 20,000 entries and 40,000 index files: 250 ms to
+// parse the database, 60 ms to list the index folder. So the database is read
+// again only when it changes, the folder at most every few seconds, and not at
+// all once every entry has been seen indexed: clangd does not delete index
+// files, so "done" only goes back when the database gains files, which changes
+// its mtime.
+const RECOUNT_MS = 5000;
+let cached = { db: '', mtime: 0, names: [], progress: null, countedAt: 0 };
 
-/** @param {string} db */
-function sourceNames(db) {
-  const mtime = fs.statSync(db).mtimeMs;
-  if (cached.db !== db || cached.mtime !== mtime) {
-    const entries = JSON.parse(fs.readFileSync(db, 'utf8'));
+/** @param {{db: string, root: string}} found */
+function counted(found) {
+  const mtime = fs.statSync(found.db).mtimeMs;
+  if (cached.db !== found.db || cached.mtime !== mtime) {
+    const entries = JSON.parse(fs.readFileSync(found.db, 'utf8'));
     const files = new Set(entries.map((entry) => path.resolve(entry.directory || '', entry.file)));
-    cached = { db, mtime, names: [...files].map((file) => path.basename(file)) };
+    cached = { db: found.db, mtime, names: [...files].map((file) => path.basename(file)), progress: null, countedAt: 0 };
   }
-  return cached.names;
+  const { progress } = cached;
+  if (progress && (progress.done >= progress.total || Date.now() - cached.countedAt < RECOUNT_MS)) return progress;
+
+  let indexed = new Set();
+  try {
+    indexed = new Set(
+      fs.readdirSync(path.join(found.root, '.cache', 'clangd', 'index')).map((file) => file.replace(/\.[0-9A-F]+\.idx$/, '')),
+    );
+  } catch {
+    // No index folder yet: nothing done.
+  }
+  cached.progress = { done: cached.names.filter((name) => indexed.has(name)).length, total: cached.names.length };
+  cached.countedAt = Date.now();
+  return cached.progress;
 }
 
 /**
@@ -80,16 +100,7 @@ function indexProgress(document) {
   const found = findDatabase(document, folder);
   if (!found) return { missing: true };
   try {
-    const names = sourceNames(found.db);
-    let indexed = new Set();
-    try {
-      indexed = new Set(
-        fs.readdirSync(path.join(found.root, '.cache', 'clangd', 'index')).map((file) => file.replace(/\.[0-9A-F]+\.idx$/, '')),
-      );
-    } catch {
-      // No index folder yet: nothing done.
-    }
-    return { done: names.filter((name) => indexed.has(name)).length, total: names.length };
+    return counted(found);
   } catch {
     return null;
   }
