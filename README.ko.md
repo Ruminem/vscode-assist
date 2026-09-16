@@ -36,7 +36,9 @@ VS Code에는 `Go to Definition`, `Go to Declaration`, `Go to Implementation`이
 이 표는 Microsoft C/C++ 확장으로 잰 것임. 이 서버는 대부분의 자리에서 답을 정확히 하나만
 주기 때문에, 호출부 메뉴의 두 번째 줄은 이름 검색이 채움. 점프가 예상과 다른 곳으로 가면
 명령 팔레트에서 **Assist: Explain what the round trip sees here**를 실행하면 각 출처가
-뭘 답했고 뭐가 버려졌는지 보여줌.
+뭘 답했고, 각각 얼마나 걸렸고, 뭐가 버려졌는지 보여줌. 출처들이 답하는 동안은 상태 표시줄에
+도는 표시가 뜸 — 메뉴는 가장 느린 출처가 답한 뒤에야 열 수 있어서, 서버가 파일을 아직
+파싱 중이면 화면에 다른 표시 없이 기다리게 되기 때문임.
 
 분석은 전부 언어 서버 몫임 — clangd, cpptools, rust-analyzer, tsserver. 이 확장은
 파서도 인덱스도 갖지 않음. 서버가 있는 언어면 다 되고, 정확도는 그 서버의 정확도와

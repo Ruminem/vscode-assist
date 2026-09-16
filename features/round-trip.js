@@ -259,6 +259,30 @@ function pick(document, hits) {
   });
 }
 
+/**
+ * The menu cannot open until every source has answered, and it cannot be
+ * filled in after it opens, so a slow server is a key press that seems to do
+ * nothing. A spinner in the status bar is the only sign that it did.
+ * @template T @param {() => Promise<T>} task @returns {Promise<T>}
+ */
+function busy(task) {
+  return vscode.window.withProgress(
+    { location: vscode.ProgressLocation.Window, title: vscode.l10n.t('Round trip: waiting for the language server') },
+    task,
+  );
+}
+
+/**
+ * Wall clock of one question, so the explain list can say which source the
+ * wait belongs to. On a server still parsing the file, every one of them is slow.
+ * @template T @param {Promise<T>} promise
+ */
+async function timed(promise) {
+  const start = Date.now();
+  const value = await promise;
+  return { value, ms: Date.now() - start };
+}
+
 function settings() {
   const config = vscode.workspace.getConfiguration('assist.roundTrip');
   return {
@@ -275,7 +299,7 @@ async function roundTrip() {
   const pos = editor.selection.active;
   const options = settings();
 
-  const targets = ranked(await gather(editor.document, pos, options), options.steps);
+  const targets = ranked(await busy(() => gather(editor.document, pos, options)), options.steps);
   if (targets.length === 0) {
     vscode.window.setStatusBarMessage(
       `$(circle-slash) ${vscode.l10n.t('Round trip: nowhere to go from here')}`,
@@ -305,16 +329,23 @@ async function explain() {
   const pos = editor.selection.active;
 
   const steps = Object.keys(PROVIDERS);
-  const [search, ...answers] = await Promise.all([
-    searchSymbols(document, pos),
-    ...steps.map((step) => ask(step, uri, pos)),
-  ]);
+  const [searched, ...asked] = await busy(() =>
+    Promise.all([
+      timed(searchSymbols(document, pos)),
+      ...steps.map((step) => timed(ask(step, uri, pos))),
+    ]),
+  );
+  const search = searched.value;
+  const answers = asked.map((answer) => answer.value);
+  const times = [...asked.map((answer) => answer.ms), searched.ms];
   // Kept unfiltered alongside the matches, because "the index found nothing"
   // and "the filter threw everything away" look identical from the outside and
   // want opposite fixes.
   const matched = search.symbols.filter((symbol) => carriesName(symbol, search.word));
   answers.push(matched.slice(0, MAX_BY_NAME).map(toNameHit));
-  const sources = [...steps.map((step) => LABELS[step]), vscode.l10n.t('By name')];
+  const sources = [...steps.map((step) => LABELS[step]), vscode.l10n.t('By name')].map(
+    (source, i) => `${source} · ${times[i]} ms`,
+  );
 
   const items = [];
   answers.forEach((hits, i) => {

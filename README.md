@@ -41,7 +41,10 @@ That table was measured with Microsoft's C/C++ extension, which answers most
 positions with exactly one location - the name search is what supplies the
 second row of the menu at a call site. When a jump goes somewhere unexpected,
 **Assist: Explain what the round trip sees here** lists what each source
-answered and which answers were dropped.
+answered, how long each took, and which answers were dropped. While the
+sources are still answering, the status bar shows a spinner - the menu can only
+open once the slowest of them is done, so a server still parsing the file is a
+wait with nothing else on screen.
 
 The analysis is entirely your language server's — clangd, cpptools,
 rust-analyzer, tsserver. This extension contributes no parser and no index, so
