@@ -94,6 +94,10 @@ function counted(found) {
  */
 function indexProgress(document) {
   if (!CPP.test(document.languageId) || document.uri.scheme !== 'file') return null;
+  // Everything below is clangd's index. With clangd not installed or switched
+  // off, cpptools answers on its own schedule, and reading clangd's files would
+  // cut its answers short at the indexing wait and blame a missing database.
+  if (!clangdRunning(document)) return null;
   // A file outside every workspace folder has no project to have indexed.
   const folder = vscode.workspace.getWorkspaceFolder(document.uri);
   if (!folder) return null;
@@ -104,6 +108,16 @@ function indexProgress(document) {
   } catch {
     return null;
   }
+}
+
+/**
+ * The clangd extension activates on C++ files whether or not it starts the
+ * server, so being active is not enough - `clangd.enable: false` keeps it idle.
+ * @param {vscode.TextDocument} document
+ */
+function clangdRunning(document) {
+  const clangd = vscode.extensions.getExtension('llvm-vs-code-extensions.vscode-clangd');
+  return !!clangd && vscode.workspace.getConfiguration('clangd', document.uri).get('enable', true);
 }
 
 /** @param {ReturnType<typeof indexProgress>} progress */

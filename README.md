@@ -59,7 +59,9 @@ counted from the files clangd leaves in `.cache/clangd/index`. The search only
 runs while that index is incomplete and the server left fewer than two places to
 go, skips names shorter than three characters and keywords, and stops after 1.5
 seconds. While indexing, `Alt+G` also stops waiting on the server after two
-seconds instead of sitting on a parse. Only that first line is
+seconds instead of sitting on a parse. None of this happens when clangd is not
+installed or `clangd.enable` is `false`: then cpptools is the one answering, its
+answers are waited for in full, and there is no clangd index to report on. Only that first line is
 read; a signature wrapped before the keyword gets no base row.
 
 | Where the cursor is | Where you land |
