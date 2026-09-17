@@ -31,7 +31,8 @@
       { "command": "assist.previousFunction", "title": "%command.previousFunction.title%" },
       { "command": "assist.searchSymbols", "title": "%command.searchSymbols.title%" },
       { "command": "assist.attachToProcess", "title": "%command.attachToProcess.title%" },
-      { "command": "assist.reattachToProcess", "title": "%command.reattachToProcess.title%" }
+      { "command": "assist.reattachToProcess", "title": "%command.reattachToProcess.title%" },
+      { "command": "assist.saveNote", "title": "%command.saveNote.title%" }
     ],
     "keybindings": [
       {

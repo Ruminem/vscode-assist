@@ -3,6 +3,7 @@
 const vscode = require('vscode');
 const fs = require('fs');
 const { indexProgress, isComplete, describeProgress, textGuesses } = require('./text-guess');
+const { trace, since } = require('./trace');
 
 // Every one of these is served by whatever language server is already installed
 // - clangd, cpptools, rust-analyzer, tsserver. This feature owns no analysis of
@@ -254,10 +255,13 @@ function sameContainer(names, anchors, unknown) {
  * several is a choice. Asking in parallel also costs less wall clock than
  * walking a chain did.
  * @param {vscode.TextDocument} document @param {vscode.Position} pos
- * @param {{steps: string[], searchByName: boolean}} options
+ * @param {{steps: string[], searchByName: boolean, spent: string[]}} options
+ *   spent collects when each stage finished, for the trace
  */
 async function gather(document, pos, options) {
   const uri = document.uri;
+  const start = Date.now();
+  const done = (text) => options.spent.push(`${text} at ${since(start)}`);
   // Both start now, but the name search is only waited for once the providers
   // turn out to need it - see `certain` below.
   const asked = Promise.all(options.steps.map((step) => ask(step, uri, pos)));
@@ -268,8 +272,10 @@ async function gather(document, pos, options) {
   // One deadline for both, so answers that did arrive in time are kept.
   const indexing = !isComplete(options.progress);
   const deadline = indexing && new Promise((resolve) => setTimeout(resolve, INDEXING_WAIT_MS));
-  const within = (promise) => (deadline ? Promise.race([promise, deadline.then(() => [])]) : promise);
-  const answered = await within(asked);
+  // null when the deadline won, so the trace can tell a cut from an empty answer.
+  const within = (promise) => (deadline ? Promise.race([promise, deadline.then(() => null)]) : promise);
+  const answered = (await within(asked)) || [];
+  done(`providers ${answered.flat().length}${answered.length ? '' : ' (cut at the indexing deadline)'}`);
 
   const seen = new Map();
   const add = (hit) => {
@@ -288,7 +294,10 @@ async function gather(document, pos, options) {
     .map((hit) => (cpp && hit.kind === 'implementation' ? { ...hit, role: 'override' } : hit));
   // Asked after the providers because it needs their answers to know where
   // the declaration is. Only a line that spells `override` costs a request.
-  if (cpp) resolved.push(...(await bases([new vscode.Location(uri, pos), ...resolved.map((hit) => hit.loc)], uri, pos)));
+  if (cpp) {
+    resolved.push(...(await bases([new vscode.Location(uri, pos), ...resolved.map((hit) => hit.loc)], uri, pos)));
+    done('base virtuals');
+  }
   resolved.forEach(add);
 
   // Providers resolved the symbol; the name search only guessed at it. Once the
@@ -297,8 +306,12 @@ async function gather(document, pos, options) {
   // across namespaces used to put a dozen rows on top of those two. The name
   // search stays for the servers that answer with one place or none.
   const certain = seen.size;
-  if (certain >= 2) return [...seen.values()];
-  const named = await within(searched);
+  if (certain >= 2) {
+    done('name search not waited for');
+    return [...seen.values()];
+  }
+  const named = (await within(searched)) || [];
+  done(`name search ${named.length} named`);
   const anchors = [...resolved.map((hit) => hit.loc), new vscode.Location(uri, pos)];
   // A provider that found the symbol at all found the right one, and a name
   // from an unknown namespace can only be a different symbol that happens to
@@ -313,6 +326,7 @@ async function gather(document, pos, options) {
     const taken = new Set([...seen.values(), { loc: new vscode.Location(uri, pos) }].map((hit) => lineOf(hit.loc)));
     const guesses = await textGuesses(document, pos, resolved.map((hit) => hit.loc));
     guesses.filter((hit) => !taken.has(lineOf(hit.loc))).slice(0, MAX_TEXT).forEach(add);
+    done(`text guesses ${guesses.length}`);
   }
   return [...seen.values()];
 }
@@ -468,11 +482,15 @@ async function roundTrip() {
 
   const pos = editor.selection.active;
   const progress = indexProgress(editor.document);
-  const options = { ...settings(), progress };
+  const options = { ...settings(), progress, spent: [] };
   const note = isComplete(progress) ? '' : describeProgress(progress);
+  const start = Date.now();
+  const at = `${where(new vscode.Location(editor.document.uri, pos))} "${wordAt(editor.document, pos)}"`;
 
   const targets = ranked(await busy(() => gather(editor.document, pos, options), note), options.steps);
+  const log = (outcome) => trace(`round trip ${at}: ${options.spent.join(', ')}; ${outcome}`);
   if (targets.length === 0) {
+    log(`nowhere to go, ${since(start)} in all`);
     const nowhere = vscode.l10n.t('Round trip: nowhere to go from here');
     vscode.window.setStatusBarMessage(`$(circle-slash) ${note ? `${nowhere} · ${note}` : nowhere}`, note ? 5000 : 2000);
     return;
@@ -482,10 +500,56 @@ async function roundTrip() {
   // that happens to share the name, and only a menu lets you see that first.
   const guessed = targets.some((hit) => hit.kind === 'text');
   if ((targets.length > 1 && options.pickWhenAmbiguous) || guessed) {
+    const asked = Date.now();
     await pick(editor.document, targets, note);
+    log(`menu of ${targets.length}, menu command returned after ${since(asked)}, ${since(start)} in all`);
     return;
   }
   await reveal(targets[0].loc);
+  log(`jumped, ${since(start)} in all`);
+}
+
+/** @param {vscode.TextDocument} document @param {vscode.Position} pos */
+function wordAt(document, pos) {
+  const range = document.getWordRangeAtPosition(pos);
+  return range ? document.getText(range) : '';
+}
+
+/**
+ * Every wait `Alt+G` can spend at the cursor, one at a time, for a saved note.
+ * In a row rather than at once, so no stage's time includes another's - which is
+ * also why it is slower than the round trip itself. Each row is [what, ms, count].
+ * @param {vscode.TextDocument} document @param {vscode.Position} pos
+ */
+async function measure(document, pos) {
+  const uri = document.uri;
+  const rows = [];
+  const resolved = [];
+  for (const step of Object.keys(PROVIDERS)) {
+    const { value, ms } = await timed(ask(step, uri, pos));
+    rows.push([`provider: ${step}`, ms, value.length]);
+    resolved.push(...value);
+  }
+  // Slow the first time and fast the second is a server parsing the file.
+  const again = await timed(ask('definition', uri, pos));
+  rows.push(['provider: definition, asked again', again.ms, again.value.length]);
+  if (CPP.test(document.languageId)) {
+    const places = [new vscode.Location(uri, pos), ...resolved.map((hit) => hit.loc)];
+    const found = await timed(bases(places, uri, pos));
+    rows.push(['base virtuals (asks again on override lines, may open their files)', found.ms, found.value.length]);
+  }
+  const searched = await timed(searchSymbols(document, pos));
+  const named = searched.value.symbols.filter((symbol) => carriesName(symbol, searched.value.word)).length;
+  rows.push([`name search "${searched.value.word}": returned, of which ${named} carry the name`, searched.ms, searched.value.symbols.length]);
+  // What opening the menu makes VS Code collect: every code action provider that
+  // does not rule out this kind is asked, not only this extension's.
+  const menu = await timed(
+    Promise.resolve(
+      vscode.commands.executeCommand('vscode.executeCodeActionProvider', uri, new vscode.Range(pos, pos), MENU_KIND.value),
+    ).catch(() => []),
+  );
+  rows.push(['code actions collected for the menu kind', menu.ms, (menu.value || []).length]);
+  return rows;
 }
 
 /**
@@ -555,6 +619,7 @@ async function explain() {
 }
 
 module.exports = {
+  measure,
   commands: {
     'assist.roundTrip': roundTrip,
     'assist.roundTrip.explain': explain,

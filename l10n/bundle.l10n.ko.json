@@ -30,5 +30,8 @@
   "Base virtual": "기반 가상 함수",
   "clangd index: no compile_commands.json found, so only open files are indexed": "clangd 인덱스: compile_commands.json이 없어 열린 파일만 인덱싱됨",
   "clangd index: {0}% ({1}/{2} files)": "clangd 인덱스: {0}% ({1}/{2}개 파일)",
-  "Text guess {0}% · {1}": "텍스트 추측 {0}% · {1}"
+  "Text guess {0}% · {1}": "텍스트 추측 {0}% · {1}",
+  "What felt wrong? Timings at the cursor and the recent trace are added below it.": "무엇이 이상했나요? 아래에 커서 위치의 단계별 시간과 최근 기록이 붙습니다.",
+  "e.g. Alt+G took about three seconds here": "예: 여기서 Alt+G가 3초쯤 걸림",
+  "Assist: measuring at the cursor": "Assist: 커서 위치에서 재는 중"
 }

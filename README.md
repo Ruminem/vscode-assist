@@ -142,6 +142,27 @@ work, and this extension only asks it to. They are bound on Windows only, where
 that debugger can attach from a process id alone. The process attached last is
 forgotten when the window reloads.
 
+## When it feels slow
+
+Every `Alt+G`, `Shift+Alt+S` and function step writes one line to the
+**Assist** output channel: when each stage finished, how many answers it had, and
+the total. `Alt+G` lists the providers, the base virtual lookup, the name search
+(or that it was not waited for) and the menu; symbol search lists the server's
+answer, the full list, and how long the matching here took.
+
+When something feels off, run **Assist: Write a note about what just felt wrong**
+right there. It asks what felt wrong and opens an unsaved Markdown note with
+that sentence, the versions and settings of clangd and cpptools, the cursor's
+file, line and word, and timings of every stage at the cursor asked one at a
+time - including the one the channel cannot see, how long VS Code takes to
+collect code actions before the menu opens - followed by the last 50 trace
+lines. Nothing is written until you save it. Read it before sharing: it carries
+file paths, symbol names and the line of code under the cursor.
+
+Some waiting is avoided up front. `Ctrl+Shift+↓` pressed in a row reuses the
+outline while the file is unchanged, and a symbol search query that only adds
+letters rescans what the last one matched rather than the whole list.
+
 ## How this extension treats your keyboard
 
 A keymap extension can make a mess of a keyboard, so this one is built around

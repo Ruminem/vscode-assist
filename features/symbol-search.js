@@ -2,6 +2,7 @@
 'use strict';
 
 const vscode = require('vscode');
+const { trace, since } = require('./trace');
 
 // Indexed by vscode.SymbolKind, which is a plain 0..25 enum.
 const KIND_ICONS = [
@@ -160,6 +161,17 @@ async function ask(query) {
   }
 }
 
+/**
+ * A symbol with what matching reads from it worked out once, rather than again
+ * for every letter typed.
+ * @param {vscode.SymbolInformation} symbol
+ */
+function entry(symbol) {
+  const name = bareName(symbol.name);
+  const at = symbol.location;
+  return { name, symbol, key: `${at.uri.toString()}:${at.range.start.line}:${name}` };
+}
+
 /** @param {vscode.Location} loc */
 async function reveal(loc) {
   const doc = await vscode.workspace.openTextDocument(loc.uri);
@@ -205,26 +217,47 @@ async function searchSymbols() {
   // clangd at 100 unless started with --limit-results=0 - so in a large
   // project the query is asked as well and both answers are merged.
   // It is not waited for: on a large project it is the slowest answer of all,
-  // and the query's own answer is worth showing while it is on its way.
-  let everything = [];
+  // and the query's own answer is worth showing while it is on its way. Nor is
+  // it asked for until fuzzy matching is on, the one mode that reads it.
+  let everything = null;
+  let pending = false;
   let generation = 0;
   let timer;
-  let pending = true;
   let open = true;
-  ask('').then((found) => {
-    if (!open) return;
-    everything = found;
-    pending = false;
-    if (fuzzy && picker.value.trim()) refresh();
-    else picker.busy = false;
-  });
+  const list = () => {
+    if (everything || pending) return;
+    pending = true;
+    const start = Date.now();
+    ask('').then((found) => {
+      trace(`symbol search: full list ${found.length} symbols in ${since(start)}`);
+      pending = false;
+      if (!open) return;
+      everything = found.map(entry);
+      narrowed = null;
+      if (fuzzy && picker.value.trim()) refresh();
+      else picker.busy = false;
+    });
+  };
+  if (fuzzy) list();
+
   // Typing back and forth asks the same queries again; the answer does not change
   // while the search box is open.
   const asked = new Map();
   const askOnce = (query) => {
-    if (!asked.has(query)) asked.set(query, ask(query));
-    return asked.get(query);
+    if (asked.has(query)) return asked.get(query);
+    const start = Date.now();
+    const answer = ask(query).then((found) => {
+      trace(`symbol search: server answered "${query}" with ${found.length} in ${since(start)}`);
+      return found.map(entry);
+    });
+    asked.set(query, answer);
+    return answer;
   };
+
+  // A query that only adds letters to the last one cannot match anything the
+  // last one did not - in order with gaps, or adjacent - so only what matched
+  // last time is scored again, not the whole list.
+  let narrowed = null;
 
   const refresh = () => {
     clearTimeout(timer);
@@ -237,23 +270,28 @@ async function searchSymbols() {
       }
 
       picker.busy = true;
-      const answers = [fuzzy ? everything : [], await askOnce(query)];
+      const answer = await askOnce(query);
       if (mine !== generation) return;
       picker.busy = fuzzy && pending;
 
+      const start = Date.now();
+      const reuse = narrowed && narrowed.fuzzy === fuzzy && query.startsWith(narrowed.query);
+      const pool = reuse ? narrowed.entries : fuzzy && everything ? everything : [];
       const match = fuzzy ? fuzzyMatch : exactMatch;
       const seen = new Set();
       const ranked = [];
-      for (const symbol of answers.flat()) {
-        const name = bareName(symbol.name);
-        const at = symbol.location;
-        const key = `${at.uri.toString()}:${at.range.start.line}:${name}`;
-        if (seen.has(key)) continue;
-        seen.add(key);
-        const found = match(query, name);
-        if (found) ranked.push({ ...found, name, symbol });
+      for (const item of [pool, answer].flat()) {
+        if (seen.has(item.key)) continue;
+        seen.add(item.key);
+        const found = match(query, item.name);
+        if (found) ranked.push({ ...found, ...item });
       }
+      narrowed = { query, fuzzy, entries: ranked.map(({ name, symbol, key }) => ({ name, symbol, key })) };
       ranked.sort((a, b) => b.score - a.score || a.name.localeCompare(b.name));
+      trace(
+        `symbol search: "${query}" scored ${seen.size}${reuse ? ' (narrowed from the last query)' : ''}, ` +
+          `${ranked.length} matched in ${since(start)}${fuzzy && !everything ? ', full list not in yet' : ''}`,
+      );
 
       picker.items = ranked.slice(0, MAX_ITEMS).map(({ name, positions, symbol }) => ({
         label: `$(${KIND_ICONS[symbol.kind] || 'symbol-misc'}) ${decorate(name, positions)}`,
@@ -275,6 +313,7 @@ async function searchSymbols() {
   picker.onDidTriggerButton(() => {
     fuzzy = !fuzzy;
     picker.buttons = [fuzzyButton(fuzzy)];
+    if (fuzzy) list();
     refresh();
   });
   picker.onDidAccept(async () => {

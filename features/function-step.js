@@ -2,6 +2,7 @@
 'use strict';
 
 const vscode = require('vscode');
+const { trace, since } = require('./trace');
 
 // A stop is whatever the language server calls a function. Classes, structs
 // and namespaces are not stops of their own, but what is declared inside them
@@ -38,6 +39,10 @@ function stops(raw) {
   return out.sort((a, b) => a.compareTo(b));
 }
 
+// Pressed in a row, the file has not changed between presses and neither has
+// its outline, so the last answer is reused while the document version holds.
+let cached = { uri: '', version: -1, stops: [] };
+
 /**
  * Lines, not positions, decide what counts as next. Standing anywhere on a
  * function's name line, "previous" should leave that function rather than
@@ -51,20 +56,27 @@ function step(direction) {
     const editor = vscode.window.activeTextEditor;
     if (!editor) return;
     const line = editor.selection.active.line;
+    const document = editor.document;
+    const start = Date.now();
 
-    let raw;
-    try {
-      raw = await vscode.commands.executeCommand(
-        'vscode.executeDocumentSymbolProvider',
-        editor.document.uri,
-      );
-    } catch {
-      // A server that does not implement the request rejects rather than
-      // answering empty. Here that only means there is nowhere to go.
-      raw = [];
+    let all;
+    const reused = cached.uri === document.uri.toString() && cached.version === document.version;
+    if (reused) {
+      all = cached.stops;
+    } else {
+      let raw;
+      try {
+        raw = await vscode.commands.executeCommand('vscode.executeDocumentSymbolProvider', document.uri);
+      } catch {
+        // A server that does not implement the request rejects rather than
+        // answering empty. Here that only means there is nowhere to go.
+        raw = [];
+      }
+      all = stops(raw);
+      // An empty outline is not kept: a server still parsing the file gives one.
+      if (all.length) cached = { uri: document.uri.toString(), version: document.version, stops: all };
     }
-
-    const all = stops(raw);
+    trace(`function step: ${all.length} stops${reused ? ' (same version, reused)' : ''} in ${since(start)}`);
     const target =
       direction > 0
         ? all.find((p) => p.line > line)

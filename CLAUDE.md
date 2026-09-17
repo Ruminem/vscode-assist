@@ -20,6 +20,8 @@ cpptools, rust-analyzer, tsserver) 몫임. 이 성질도 깨지 않음 — 깨�
 | `features/function-step.js` | `Ctrl+Shift+↑/↓`. 언어 서버의 문서 심볼에서 함수·메서드·생성자 이름 줄만 골라 이전·다음으로 이동 |
 | `features/symbol-search.js` | `Shift+Alt+S`. 자체 심볼 검색 창. 서버에서 빈 검색어 결과와 입력 결과를 받아 이 확장이 직접 fuzzy로 거름. 창의 버튼으로 fuzzy를 켜고 끔 |
 | `features/process-attach.js` | `Ctrl+Alt+P`·`Shift+Alt+P`. C/C++ 확장의 프로세스 선택기(`extension.pickNativeProcess`)와 `cppvsdbg` 디버거로 연결·다시 연결. 다시 연결은 마지막 실행 파일 이름을 `tasklist`로 찾음. Windows 전용 |
+| `features/trace.js` | 출력 패널 `Assist` 채널에 키 한 번당 한 줄씩 단계별 시간을 남김. 최근 200줄은 메모용으로 기억함. 늘 켜져 있음. 기록 문장은 영어 그대로(측정값이지 화면 문구가 아님) |
+| `features/note.js` | `assist.saveNote`. 사용자 한 줄 + 언어 서버 버전·설정 + 커서 위치에서 단계별로 하나씩 잰 시간(`round-trip.js`의 `measure`) + 최근 기록을 저장 안 된 마크다운으로 엶. 회사 PC에서 겪은 걸 집에서 고칠 때 넘기는 용도. 키 없음 |
 | `tools/check-keys.js` | 키 충돌 검사기. 런타임 아님 — 바인딩을 **추가하기 전에** 돌림 |
 | `tools/release.js` | 태그를 `package.json` 버전에서 만듦. 인자 없이 돌리면 점검만 하고, `--push`면 태그를 만들어 밈. neon-glow에서 가져옴 |
 | `tools/make-icon.js` | `icon.png` 생성기. 의존성 없음. neon-glow 렌더러를 모양 하나로 줄인 것 |
@@ -30,7 +32,7 @@ cpptools, rust-analyzer, tsserver) 몫임. 이 성질도 깨지 않음 — 깨�
 | `package.nls.json` / `package.nls.ko.json` | 명령 제목과 설정 설명의 영어 원문과 한국어. `package.json`에는 `%키%`만 있음 |
 | `NEXT.md` | 세션 인수인계 노트. VSIX에는 안 들어감 |
 
-명령: `assist.roundTrip` `assist.roundTrip.explain` `assist.nextFunction` `assist.previousFunction` `assist.searchSymbols` `assist.attachToProcess` `assist.reattachToProcess`
+명령: `assist.roundTrip` `assist.roundTrip.explain` `assist.nextFunction` `assist.previousFunction` `assist.searchSymbols` `assist.attachToProcess` `assist.reattachToProcess` `assist.saveNote`
 설정: `assist.keymap.enabled` `assist.roundTrip.providers` `assist.roundTrip.searchByName` `assist.roundTrip.pickWhenAmbiguous` `assist.roundTrip.textSearch` `assist.symbolSearch.fuzzy`
 
 ## 기능을 더하는 비용은 두 갈래임

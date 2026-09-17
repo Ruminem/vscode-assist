@@ -14,6 +14,7 @@ const FEATURES = [
   require('./features/function-step'),
   require('./features/symbol-search'),
   require('./features/process-attach'),
+  require('./features/note'),
 ];
 
 /** @param {vscode.ExtensionContext} context */
