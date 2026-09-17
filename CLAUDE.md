@@ -14,13 +14,13 @@ cpptools, rust-analyzer, tsserver) 몫임. 이 성질도 깨지 않음 — 깨�
 
 | 파일 | 역할 |
 |---|---|
-| `extension.js` | 진입점. `features/` 목록을 돌며 명령을 등록함. 그 외 로직 없음 |
+| `extension.js` | 진입점. `features/` 목록을 돌며 명령을 등록하고, `deactivate`를 내보낸 기능은 창이 닫힐 때 부름. 그 외 로직 없음. `onStartupFinished`로 켜지는 건 `trace.js`가 강제 종료로 남은 임시 파일을 지우기 위해서임 |
 | `features/round-trip.js` | `Alt+G`. provider를 전부 물어보고, 커서가 이미 있는 자리를 뺀 뒤, 하나면 점프하고 여럿이면 목록을 냄 |
 | `features/text-guess.js` | `Alt+G`의 보조. clangd 인덱스 진행률(`.cache/clangd/index` 파일 수 ÷ `compile_commands.json` 항목 수)과, 인덱스가 덜 됐을 때만 도는 텍스트 추측(VS Code 내장 ripgrep). clangd가 없거나 `clangd.enable: false`면 둘 다 안 함 — cpptools 답을 끝까지 기다림. 명령 없음 — `round-trip.js`가 부름. 결과를 저장하지 않으므로 "인덱스를 갖지 않음"은 그대로임 |
 | `features/function-step.js` | `Ctrl+Shift+↑/↓`. 언어 서버의 문서 심볼에서 함수·메서드·생성자 이름 줄만 골라 이전·다음으로 이동 |
 | `features/symbol-search.js` | `Shift+Alt+S`. 자체 심볼 검색 창. 서버에서 빈 검색어 결과와 입력 결과를 받아 이 확장이 직접 fuzzy로 거름. 창의 버튼으로 fuzzy를 켜고 끔 |
 | `features/process-attach.js` | `Ctrl+Alt+P`·`Shift+Alt+P`. C/C++ 확장의 프로세스 선택기(`extension.pickNativeProcess`)와 `cppvsdbg` 디버거로 연결·다시 연결. 다시 연결은 마지막 실행 파일 이름을 `tasklist`로 찾음. Windows 전용 |
-| `features/trace.js` | 출력 패널 `Assist` 채널에 키 한 번당 한 줄씩 단계별 시간을 남김. 최근 200줄은 메모용으로 기억함. 늘 켜져 있음. 기록 문장은 영어 그대로(측정값이지 화면 문구가 아님) |
+| `features/trace.js` | 디버깅용 추적. 기본 꺼짐 — `assist.toggleTrace`로 켜면 키 한 번당 한 줄씩 단계별 시간을 **임시 파일**(`%TEMP%/assist-trace-<pid>-*.txt`)에 남기고 상태 표시줄에 표시(누르면 꺼짐). 끌 때 저장 위치를 묻고 임시 파일은 항상 지움. 창이 닫히면 `deactivate`가 지우고, 강제 종료로 남은 건 다음 시작 때 pid가 죽은 파일만 지움. 출력 채널은 안 씀 — VS Code가 세션 로그에 옮겨 적어서. 최근 200줄은 메모용으로 메모리에 둠. 기록 문장은 영어 그대로 |
 | `features/note.js` | `assist.saveNote`. 사용자 한 줄 + 언어 서버 버전·설정 + 커서 위치에서 단계별로 하나씩 잰 시간(`round-trip.js`의 `measure`) + 최근 기록을 저장 안 된 마크다운으로 엶. 회사 PC에서 겪은 걸 집에서 고칠 때 넘기는 용도. 키 없음 |
 | `tools/check-keys.js` | 키 충돌 검사기. 런타임 아님 — 바인딩을 **추가하기 전에** 돌림 |
 | `tools/release.js` | 태그를 `package.json` 버전에서 만듦. 인자 없이 돌리면 점검만 하고, `--push`면 태그를 만들어 밈. neon-glow에서 가져옴 |
@@ -32,7 +32,7 @@ cpptools, rust-analyzer, tsserver) 몫임. 이 성질도 깨지 않음 — 깨�
 | `package.nls.json` / `package.nls.ko.json` | 명령 제목과 설정 설명의 영어 원문과 한국어. `package.json`에는 `%키%`만 있음 |
 | `NEXT.md` | 세션 인수인계 노트. VSIX에는 안 들어감 |
 
-명령: `assist.roundTrip` `assist.roundTrip.explain` `assist.nextFunction` `assist.previousFunction` `assist.searchSymbols` `assist.attachToProcess` `assist.reattachToProcess` `assist.saveNote`
+명령: `assist.roundTrip` `assist.roundTrip.explain` `assist.nextFunction` `assist.previousFunction` `assist.searchSymbols` `assist.attachToProcess` `assist.reattachToProcess` `assist.saveNote` `assist.toggleTrace`
 설정: `assist.keymap.enabled` `assist.roundTrip.providers` `assist.roundTrip.searchByName` `assist.roundTrip.pickWhenAmbiguous` `assist.roundTrip.textSearch` `assist.symbolSearch.fuzzy`
 
 ## 기능을 더하는 비용은 두 갈래임

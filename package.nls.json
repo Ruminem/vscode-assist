@@ -7,6 +7,7 @@
   "command.attachToProcess.title": "Assist: Attach the debugger to a running process",
   "command.reattachToProcess.title": "Assist: Reattach the debugger to the last process",
   "command.saveNote.title": "Assist: Write a note about what just felt wrong",
+  "command.toggleTrace.title": "Assist: Start or stop tracing",
   "config.title": "Assist",
   "config.keymap.enabled": "The master switch for every key this extension binds. Every contributed keybinding carries `config.assist.keymap.enabled` in its `when` clause, so turning this off hands all of them back at once - the commands stay available from the Command Palette and from your own `keybindings.json`.\n\nThis exists because an extension has no way to release a key once it has taken it. `keybindings.json` can remove a rule with a leading `-`, and your rules always win over an extension's, but there is no equivalent an extension can ship. A `when` clause is the only lever on this side of the line, so the switch is built out of one.",
   "config.roundTrip.title": "Assist: Round Trip",

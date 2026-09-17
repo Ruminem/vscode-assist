@@ -33,5 +33,11 @@
   "Text guess {0}% · {1}": "텍스트 추측 {0}% · {1}",
   "What felt wrong? Timings at the cursor and the recent trace are added below it.": "무엇이 이상했나요? 아래에 커서 위치의 단계별 시간과 최근 기록이 붙습니다.",
   "e.g. Alt+G took about three seconds here": "예: 여기서 Alt+G가 3초쯤 걸림",
-  "Assist: measuring at the cursor": "Assist: 커서 위치에서 재는 중"
+  "Assist: measuring at the cursor": "Assist: 커서 위치에서 재는 중",
+  "Assist: tracing": "Assist: 추적 중",
+  "Click to stop tracing": "눌러서 추적 종료",
+  "Text": "텍스트",
+  "Save the trace": "추적 기록 저장",
+  "Trace saved to {0}": "추적 기록을 {0}에 저장함",
+  "Could not save the trace: {0}": "추적 기록을 저장하지 못했습니다: {0}"
 }

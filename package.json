@@ -17,7 +17,7 @@
   "keywords": ["goto definition", "declaration", "navigation", "shortcuts", "c++"],
   "main": "./extension.js",
   "l10n": "./l10n",
-  "activationEvents": [],
+  "activationEvents": ["onStartupFinished"],
   "scripts": {
     "check-keys": "node tools/check-keys.js",
     "icon": "node tools/make-icon.js",
@@ -32,7 +32,8 @@
       { "command": "assist.searchSymbols", "title": "%command.searchSymbols.title%" },
       { "command": "assist.attachToProcess", "title": "%command.attachToProcess.title%" },
       { "command": "assist.reattachToProcess", "title": "%command.reattachToProcess.title%" },
-      { "command": "assist.saveNote", "title": "%command.saveNote.title%" }
+      { "command": "assist.saveNote", "title": "%command.saveNote.title%" },
+      { "command": "assist.toggleTrace", "title": "%command.toggleTrace.title%" }
     ],
     "keybindings": [
       {

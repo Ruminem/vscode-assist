@@ -4,7 +4,7 @@
 const vscode = require('vscode');
 const os = require('os');
 const { measure } = require('./round-trip');
-const { recent } = require('./trace');
+const { recent, tracing } = require('./trace');
 const { indexProgress, describeProgress } = require('./text-guess');
 const { version } = require('../package.json');
 
@@ -84,7 +84,9 @@ async function saveNote() {
     out.push('');
   }
 
-  out.push('## Recent trace', '', '```', ...recent().slice(-TRACE_LINES), '```', '');
+  const traced = recent().slice(-TRACE_LINES);
+  if (traced.length) out.push('## Recent trace', '', '```', ...traced, '```', '');
+  else if (!tracing()) out.push('## Recent trace', '', 'Tracing was off. Start it with Assist: Start or stop tracing, press the slow key again, then write the note.', '');
 
   const note = await vscode.workspace.openTextDocument({ language: 'markdown', content: out.join('\n') });
   await vscode.window.showTextDocument(note, { preview: false });

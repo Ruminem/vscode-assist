@@ -15,6 +15,7 @@ const FEATURES = [
   require('./features/symbol-search'),
   require('./features/process-attach'),
   require('./features/note'),
+  require('./features/trace'),
 ];
 
 /** @param {vscode.ExtensionContext} context */
@@ -23,6 +24,8 @@ function activate(context) {
     for (const [id, handler] of Object.entries(feature.commands)) {
       context.subscriptions.push(vscode.commands.registerCommand(id, handler));
     }
+    // Disposed when the window closes, which is a feature's last chance to clean up.
+    if (feature.deactivate) context.subscriptions.push({ dispose: feature.deactivate });
   }
 }
 
