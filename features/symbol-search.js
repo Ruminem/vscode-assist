@@ -56,6 +56,11 @@ function fuzzyMatch(query, name) {
   const t = name.toLowerCase();
   const n = t.length;
   if (!q.length || q.length > n) return null;
+  // Most of the list does not hold the letters in order at all. Rule those out
+  // with one pass before the scoring below allocates two arrays per letter.
+  let k = 0;
+  for (let i = 0; i < n && k < q.length; i++) if (t[i] === q[k]) k++;
+  if (k < q.length) return null;
 
   let prev = [];
   const back = [];
@@ -199,10 +204,27 @@ async function searchSymbols() {
   // itself is exactly what cannot find "ce" in Circle. Servers cap the list -
   // clangd at 100 unless started with --limit-results=0 - so in a large
   // project the query is asked as well and both answers are merged.
-  const everything = ask('');
-
+  // It is not waited for: on a large project it is the slowest answer of all,
+  // and the query's own answer is worth showing while it is on its way.
+  let everything = [];
   let generation = 0;
   let timer;
+  let pending = true;
+  let open = true;
+  ask('').then((found) => {
+    if (!open) return;
+    everything = found;
+    pending = false;
+    if (fuzzy && picker.value.trim()) refresh();
+    else picker.busy = false;
+  });
+  // Typing back and forth asks the same queries again; the answer does not change
+  // while the search box is open.
+  const asked = new Map();
+  const askOnce = (query) => {
+    if (!asked.has(query)) asked.set(query, ask(query));
+    return asked.get(query);
+  };
 
   const refresh = () => {
     clearTimeout(timer);
@@ -215,9 +237,9 @@ async function searchSymbols() {
       }
 
       picker.busy = true;
-      const answers = await Promise.all([fuzzy ? everything : Promise.resolve([]), ask(query)]);
+      const answers = [fuzzy ? everything : [], await askOnce(query)];
       if (mine !== generation) return;
-      picker.busy = false;
+      picker.busy = fuzzy && pending;
 
       const match = fuzzy ? fuzzyMatch : exactMatch;
       const seen = new Set();
@@ -261,6 +283,7 @@ async function searchSymbols() {
     if (chosen) await reveal(chosen.loc);
   });
   picker.onDidHide(() => {
+    open = false;
     clearTimeout(timer);
     picker.dispose();
   });

@@ -109,6 +109,8 @@ language server and can only re-filter what comes back, and clangd matches
 only at the start of a name or of a word inside it, so for `ce` it returns
 nothing. This search takes the full list the server gives for an empty query,
 adds the server's answer to the query itself, and does the matching here.
+The full list is not waited for - on a large project it is the slowest answer -
+so rows for the query show first and the gap-matched ones join when it arrives.
 
 The button in the search box turns fuzzy matching off for that search, so the
 letters have to be adjacent. `assist.symbolSearch.fuzzy` sets where it starts.
