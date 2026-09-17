@@ -56,6 +56,23 @@ On cpptools the rows differ - it answers most positions once, so the name search
 fills in. `Assist: Explain what the round trip sees here` shows which source
 said what.
 
+## Versions behind #ifdef - a measurement, not a test yet
+
+`platform.cpp` defines `pixelDensity` three times under `#ifdef` / `#elif` /
+`#else`, and `platform_stub.cpp` a fourth time under an `#if` nothing turns on.
+Only `platform.cpp:15` is compiled. The question is which language server hands
+back the switched-off ones, because that decides how `Alt+G` could list them.
+
+| | file:line | on | record |
+|---|---|---|---|
+| 9 | `platform.cpp:22` | `pixelDensity` | every row of `Explain`, the name index *before* filtering included |
+| 10 | `platform.cpp:15` | `pixelDensity` | the same |
+
+Do both on cpptools (`clangd.enable: false`) and on clangd (with the database
+from `make-compile-db.js`). The versions to look for are `platform.cpp:6`,
+`platform.cpp:10` and `platform_stub.cpp:6`. Nothing is expected yet: write down
+what came back, and the rows become a table once the feature exists.
+
 ## When a row is wrong
 
 `Assist: Explain what the round trip sees here` from the command palette, at the
