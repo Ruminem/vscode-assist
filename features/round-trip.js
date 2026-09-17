@@ -258,17 +258,18 @@ function sameContainer(names, anchors, unknown) {
  */
 async function gather(document, pos, options) {
   const uri = document.uri;
-  const asked = Promise.all([
-    Promise.all(options.steps.map((step) => ask(step, uri, pos))),
-    options.searchByName ? byName(document, pos) : [],
-  ]);
+  // Both start now, but the name search is only waited for once the providers
+  // turn out to need it - see `certain` below.
+  const asked = Promise.all(options.steps.map((step) => ask(step, uri, pos)));
+  const searched = options.searchByName ? byName(document, pos) : Promise.resolve([]);
   // While clangd is still indexing it can sit on a request for as long as it
   // takes to parse the file, and the menu cannot open before every answer is
   // in. Past a short wait the text guesses below are worth more than silence.
+  // One deadline for both, so answers that did arrive in time are kept.
   const indexing = !isComplete(options.progress);
-  const [answered, named] = indexing
-    ? await Promise.race([asked, new Promise((resolve) => setTimeout(() => resolve([[], []]), INDEXING_WAIT_MS))])
-    : await asked;
+  const deadline = indexing && new Promise((resolve) => setTimeout(resolve, INDEXING_WAIT_MS));
+  const within = (promise) => (deadline ? Promise.race([promise, deadline.then(() => [])]) : promise);
+  const answered = await within(asked);
 
   const seen = new Map();
   const add = (hit) => {
@@ -297,6 +298,7 @@ async function gather(document, pos, options) {
   // search stays for the servers that answer with one place or none.
   const certain = seen.size;
   if (certain >= 2) return [...seen.values()];
+  const named = await within(searched);
   const anchors = [...resolved.map((hit) => hit.loc), new vscode.Location(uri, pos)];
   // A provider that found the symbol at all found the right one, and a name
   // from an unknown namespace can only be a different symbol that happens to
