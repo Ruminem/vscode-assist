@@ -1,0 +1,70 @@
+# Changelog
+
+## 0.4.6 — 2026-09-17
+
+- Tracing is a debugging toggle that writes to a temporary file, asks where to save it when you stop,
+  and cleans the temporary file up on stop, on window close and after a crash.
+
+## 0.4.5 — 2026-09-17
+
+- The round trip stops waiting for the name search once the providers already offer two places.
+- Symbol search shows rows as they match instead of waiting for the server's full symbol list, and reuses answers already asked for.
+- Every stage of Alt+G, symbol search and the function steps is timed into an Assist output channel.
+
+## 0.4.4 — 2026-09-17
+
+- With clangd absent or disabled, C/C++ answers from cpptools are waited for in full rather than cut off
+  after two seconds and replaced by text guesses.
+
+## 0.4.3 — 2026-09-16
+
+- A jump goes to the file where it is already showing in another split, instead of opening it again in this one.
+
+## 0.4.2 — 2026-09-16
+
+- Override lines are read from disk, so a round trip no longer makes clangd parse every header it lands in.
+
+## 0.4.1 — 2026-09-16
+
+- clangd's index files are counted once per database change, not on every round trip.
+
+## 0.4.0 — 2026-09-16
+
+- While clangd's index is incomplete, definitions are guessed from text and ranked by similarity,
+  and the menu says how far the index has got.
+
+## 0.3.5 — 2026-09-16
+
+- The Override label survives a definition answer arriving first.
+
+## 0.3.4 — 2026-09-16
+
+- Overrides and base virtuals are marked in the round trip menu for C++.
+
+## 0.3.3 — 2026-09-16
+
+- Same-named symbols from other namespaces are left out whenever a provider found the one asked about.
+
+## 0.3.2 — 2026-09-16
+
+- Name guesses stay out of the round trip menu when the providers already offer a choice.
+
+## 0.3.1 — 2026-09-16
+
+- A status bar spinner while the round trip waits, and each source timed in the explain list.
+
+## 0.3.0 — 2026-09-16
+
+- Attach the debugger to a running process with `Ctrl+Alt+P`, and reattach with `Shift+Alt+P`.
+
+## 0.2.0 — 2026-09-15
+
+- Step between functions with `Ctrl+Shift+Up` and `Down`.
+- Search symbols with `Shift+Alt+S`, matching the letters in order with gaps allowed.
+- Menus, messages, command titles and settings speak Korean when VS Code does.
+
+## 0.1.0 — 2026-09-15
+
+- First release. `Alt+G` on a declaration goes to the definition and back again, opening its choices
+  at the cursor rather than at the top of the window.
+- `Shift+Alt+O` opens Quick Open, and hands the keys back to Organize Imports where that applies.
