@@ -51,8 +51,8 @@ cpptools, rust-analyzer, tsserver) 몫임. 이 성질도 깨지 않음 — 깨�
 - **키만 필요한 기능** — `contributes` 항목 하나
 
 **두 번째가 기본임.** VS Code에 이미 명령이 있으면 코드를 쓰지 않음. 지금 실린 것 중
-코드가 든 건 `Alt+G`(`Alt+D`), `Ctrl+Shift+↑/↓`, `Shift+Alt+S`, `Alt+E`, `Ctrl+Alt+P`·`Shift+Alt+P`이고, `Shift+Alt+O`·`Alt+M`은
-기존 명령에 키만 더 단 것임. **`Shift+Alt+S`는 원래 `Ctrl+T`에 키만 단 것이었음.** 기본 심볼
+코드가 든 건 `Alt+G`(`Alt+D`), `Ctrl+Shift+↑/↓`, `Shift+Alt+S`, `Alt+E`, `Ctrl+Alt+P`·`Shift+Alt+P`이고, `Shift+Alt+O`·`Alt+M`·`Alt+F`는
+기존 명령에 키만 더 단 것임. **`Alt+F`는 처음에 정의/선언/호출로 나눠 보여 주는 자체 창으로 만들려 했음** — clangd 22 로 재 보니 참조 답에는 위치만 있고 종류가 없으며, 정의·선언 답은 커서가 어느 쪽에 있느냐에 따라 서로 뒤바뀌어 나누는 근거로 못 썼음. 그래서 `Shift+Alt+F12`(`references-view.findReferences`)에 키만 달았음. 참조 패널(`focusedView == 'references-view.tree'`)에서 다시 누르면 `focusActiveEditorGroup`으로 편집기에 돌아옴 — 이 줄이 없으면 `editorTextFocus`가 꺼진 그 자리에서 메뉴바 `파일(F)`이 열렸음. **`Shift+Alt+S`는 원래 `Ctrl+T`에 키만 단 것이었음.** 기본 심볼
 검색 창은 서버가 준 결과를 자기 fuzzy로 다시 거를 뿐이라, 서버가 0건을 주면 보여줄 게 없음.
 clangd는 이름 앞부분과 단어 머리글자만 맞춰서 `ce`(→ `Circle`) 같은 중간 건너뛰기에 0건을 줌
 (9/15 직접 LSP로 잼). 그래서 자체 창으로 바꿨음. `Ctrl+T`는 그대로 남음.

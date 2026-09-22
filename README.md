@@ -14,8 +14,9 @@ Navigation shortcuts VS Code does not ship, bound to keys VS Code does not use.
 | `Shift+Alt+P` | Attach again to the process attached last. |
 | `Shift+Alt+O` | Open a file anywhere in the workspace. |
 | `Alt+M` | List the symbols in this file. |
+| `Alt+F` | Find every reference to the symbol under the cursor, in the References panel. Press it again there to go back to the editor. |
 
-The last two are VS Code's own `Ctrl+P` and `Ctrl+Shift+O` under a second key.
+The last three are VS Code's own `Ctrl+P`, `Ctrl+Shift+O` and `Shift+Alt+F12` under a second key.
 The first six rows are the ones that needed code.
 
 Verified on Windows only. The macOS and Linux keys are in the manifest, but
@@ -270,7 +271,7 @@ four rules.
 
 **It adds keys, it does not take them.** A conflict happens when a key that
 already did something starts doing something else. `Ctrl+T` and `Ctrl+Shift+O`
-still work; `Alt+M` is a second key onto the same command, and `Shift+Alt+S`
+still work; `Alt+M` and `Alt+F` are second keys onto the same commands, and `Shift+Alt+S`
 opens a search of its own next to `Ctrl+T` rather than instead of it. Nothing
 is displaced.
 

@@ -67,6 +67,16 @@
         "when": "editorTextFocus && config.assist.keymap.enabled"
       },
       {
+        "command": "references-view.findReferences",
+        "key": "alt+f",
+        "when": "editorTextFocus && editorHasReferenceProvider && config.assist.keymap.enabled"
+      },
+      {
+        "command": "workbench.action.focusActiveEditorGroup",
+        "key": "alt+f",
+        "when": "focusedView == 'references-view.tree' && config.assist.keymap.enabled"
+      },
+      {
         "command": "workbench.action.quickOpen",
         "key": "shift+alt+o",
         "when": "config.assist.keymap.enabled"
