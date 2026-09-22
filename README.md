@@ -325,6 +325,19 @@ slots survived the translation. It is worth a habit, because a missing
 translation does not fail: VS Code shows the English and the extension keeps
 working, so nothing tells you until someone reads the Korean.
 
+Two more, for the dot-to-arrow conversion:
+
+```
+npm run check-dot-arrow      the two decisions it makes without a server
+npm run probe-clangd         what clangd actually answers, over LSP
+```
+
+The second one talks to a real clangd with no editor in the way, types a dot at
+every position in `fixtures/dot-arrow/`, and prints what came back. It exists
+because this feature was once built on a guess about what a language server
+answers, and the guess was wrong in a way that would have corrupted people's
+files. Measure before changing that rule.
+
 ## License
 
 MIT

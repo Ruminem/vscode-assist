@@ -49,6 +49,23 @@ language server answer worse, and then a failure here says nothing.
 | 12 | `pMgr->First();` | `AddrInfo*` | stays `.` - **never asked**, the trace says `left of the dot is other`. A pointer, and still left alone: the type of a whole expression is a harder question than the type of a name, and it is not asked yet |
 | 13 | row 1 again, then `Ctrl+Z` once | - | the `.` is back, and the line is otherwise untouched |
 
+## Getting the numbers again
+
+```
+npm run probe-clangd
+```
+
+talks LSP to clangd directly - no editor, no extension host - types the dot at
+every position above and prints how many answers carried an arrow, how many did
+not, and what `countEdits()` decides given that. It needs a clangd
+(`--clangd=<path>`, `CLANGD`, or one on PATH) and this folder's
+`compile_commands.json`, and it exits 2 rather than 1 when it cannot measure, so
+that a missing clangd never reads as a failed expectation.
+
+The table below is what it printed. When a row here stops matching what it
+prints, one of the two is out of date and the probe is the one that was
+measured.
+
 ## Where the numbers came from
 
 Rows 4 and 5 stand in for `unique_ptr`, `shared_ptr` and `vector::iterator`,

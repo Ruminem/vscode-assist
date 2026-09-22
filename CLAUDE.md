@@ -26,6 +26,7 @@ cpptools, rust-analyzer, tsserver) 몫임. 이 성질도 깨지 않음 — 깨�
 | `tools/check-keys.js` | 키 충돌 검사기. 런타임 아님 — 바인딩을 **추가하기 전에** 돌림 |
 | `tools/check-nls.js` | 번역 누락 검사기. 런타임 아님 — `npm run check-nls`, 내면서 돌림. `package.json`의 `%키%`와 두 nls 파일을 양방향으로 맞춰 보고, `vscode.l10n.t()` 원문과 `l10n/bundle.l10n.ko.json` 키를 양방향으로 맞춰 봄. `{0}` 자리 개수 어긋남, 줄바꿈 대신 들어간 역슬래시와 n(v0.1.0 버그), 번역문 안의 `$(...)` 아이콘도 잡음. **번역이 빠져도 영어로 나올 뿐 실패하지 않으므로 이게 유일한 그물임.** `l10n.t()`를 변수로 부르면 잡을 수 없으니 그것도 문제로 보고함 |
 | `tools/check-dot-arrow.js` | `dot-arrow.js`가 서버 없이 스스로 내리는 두 판정(`leftOfDot`·`countEdits`) 검사. `npm run check-dot-arrow`. 에디터도 언어 서버도 안 띄우고 `vscode` 모듈을 최소한으로 흉내 냄. **옛 규칙(화살표 하나면 변환)으로 되돌리면 2건이 실패하도록 박아 뒀음** |
+| `tools/probe-clangd.js` | clangd 탐침. `npm run probe-clangd`. LSP 로 clangd 에 직접 붙어 픽스처 자리마다 `.` 을 넣고 **화살표 편집을 단 항목 수와 점 그대로인 항목 수**를 찍음. 판정 칸은 `dot-arrow.js` 의 `countEdits` 를 그대로 불러서 내므로 **진짜 서버 답에 진짜 규칙을 먹인 결과**임 — 규칙을 여기 베껴 두지 않았음. 기대값은 픽스처 README 한 곳에만 있고 이 도구는 재기만 함. `--clangd=<경로>` 나 `CLANGD` 로 지정, 없으면 PATH 에서 찾음. **못 재면 종료 코드 2** — 1 이 아닌 이유는 "못 쟀다"가 "쟀는데 틀렸다"로 읽히면 안 되기 때문임. `unique_ptr` 버그를 잡은 게 이 도구임 |
 | `tools/release.js` | 태그를 `package.json` 버전에서 만듦. 인자 없이 돌리면 점검만 하고, `--push`면 태그를 만들어 밈. neon-glow에서 가져옴 |
 | `tools/make-icon.js` | `icon.png` 생성기. 의존성 없음. neon-glow 렌더러를 모양 하나로 줄인 것 |
 | `.github/workflows/` | `v*` 태그에서 `release.yml`은 GitHub 릴리스를, `marketplace.yml`은 마켓 게시를 함. 마켓 쪽은 `VSCE_PAT` secret이 있어야 함 |
