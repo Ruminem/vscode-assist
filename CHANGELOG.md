@@ -1,5 +1,18 @@
 # Changelog
 
+## 0.5.0 — 2026-09-22
+
+- A dot typed after a raw pointer in C, C++ and CUDA becomes `->` as you type. Off by default:
+  turn on `assist.dotArrow.enabled`, globally or in a `[cpp]` block. The language server decides,
+  so `unique_ptr`, `shared_ptr` and iterators keep their dot.
+- One `Backspace` right after that conversion takes the whole `->`; one `Ctrl+Z` brings the dot back.
+
+**한국어**
+
+- C·C++·CUDA에서 날 포인터 뒤에 찍은 점이 입력하는 순간 `->`가 됨. 기본 꺼짐 — `assist.dotArrow.enabled`를
+  전역이나 `[cpp]` 블록에서 켬. 판단은 언어 서버가 하므로 `unique_ptr`·`shared_ptr`·반복자의 점은 그대로임.
+- 변환 직후 `Backspace` 한 번이면 `->` 두 글자가 같이 지워지고, `Ctrl+Z` 한 번이면 점이 돌아옴.
+
 ## 0.4.6 — 2026-09-17
 
 - Tracing is a debugging toggle that writes to a temporary file, asks where to save it when you stop,
