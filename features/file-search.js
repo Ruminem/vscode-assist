@@ -64,6 +64,10 @@ function row(file, positions) {
     // still shows where it lives when the label is clipped.
     description: cut > 0 ? file.path.slice(0, cut) : undefined,
     uri: file.uri,
+    // The picker filters by label on its own, with a matcher that is not this
+    // one - and the label's matched letters are bold look-alikes it cannot
+    // read, so without this every row vanished the moment anything was typed.
+    alwaysShow: true,
   };
 }
 
