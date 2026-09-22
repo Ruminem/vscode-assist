@@ -145,13 +145,12 @@ forgotten when the window reloads.
 ## Turning a dot into an arrow
 
 In C and C++, a `.` typed after a pointer is a slip of the hand every time, and
-the fix is always the same three keystrokes back. Set
-`assist.dotArrow.enabled` and the dot becomes `->` as you type.
+the fix is always the same three keystrokes back. With
+`assist.dotArrow.enabled` on, the dot becomes `->` as you type.
 
-**It is off by default**, and that is the point rather than caution. Everything
-else here waits to be asked: you press a key, something happens. This one
-changes what you typed without being asked, and a setting that does that should
-be one you turned on yourself. Turn it on for a workspace, or for one language
+**It is on by default**, and it is the one thing here that does not wait to be
+asked: everything else happens when you press a key, this one changes what you
+typed. If that is not wanted, turn it off for a workspace, or for one language
 with a `"[cpp]"` block.
 
 **Whether the thing on the left is a pointer is not decided here.** Right after
@@ -291,7 +290,7 @@ only thing that can give it back.
 | `assist.roundTrip.pickWhenAmbiguous` | `true` | Show a menu when several locations answer. |
 | `assist.roundTrip.textSearch` | `true` | While clangd's index is incomplete, add text guesses with a similarity percentage. |
 | `assist.symbolSearch.fuzzy` | `true` | Start `Shift+Alt+S` with fuzzy matching on. |
-| `assist.dotArrow.enabled` | `false` | Turn a `.` typed after a pointer into `->`, in C, C++ and CUDA. |
+| `assist.dotArrow.enabled` | `true` | Turn a `.` typed after a pointer into `->`, in C, C++ and CUDA. |
 
 ## Rebinding
 

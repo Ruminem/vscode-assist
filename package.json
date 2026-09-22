@@ -156,7 +156,7 @@
         "properties": {
           "assist.dotArrow.enabled": {
             "type": "boolean",
-            "default": false,
+            "default": true,
             "scope": "language-overridable",
             "markdownDescription": "%config.dotArrow.enabled%"
           }
