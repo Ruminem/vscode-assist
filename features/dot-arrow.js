@@ -111,7 +111,10 @@ async function onChange(event) {
 
   const document = event.document;
   if (!LANGUAGES.has(document.languageId)) return;
-  if (!vscode.workspace.getConfiguration('assist.dotArrow', document.uri).get('enabled', false)) return;
+  // The document rather than its uri: a uri alone resolves folder settings but
+  // not a `"[cpp]"` block, and turning this on for one language is the way it
+  // is meant to be turned on.
+  if (!vscode.workspace.getConfiguration('assist.dotArrow', document).get('enabled', false)) return;
 
   // The typing has to be the user's own, here, now: one cursor, sitting just
   // past the dot. An edit made anywhere else in a document that happens to be
