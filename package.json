@@ -88,6 +88,11 @@
         "command": "assist.reattachToProcess",
         "key": "shift+alt+p",
         "when": "isWindows && config.assist.keymap.enabled"
+      },
+      {
+        "command": "assist.dotArrow.deleteArrow",
+        "key": "backspace",
+        "when": "editorTextFocus && assist.dotArrow.arrowAtCursor && config.assist.keymap.enabled"
       }
     ],
     "configuration": [

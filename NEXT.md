@@ -275,3 +275,12 @@ Visual Assist는 **실제로 VS Code 마켓에 올라와 있어서**, 공식 포
 확장 호스트가 코드 134 로 죽는다. `Ctrl+F5` 나 `--extensionDevelopmentPath` 직접 실행은 된다.
 실기는 `~/wt/dot-arrow-ws/drive.ps1`(저장소 밖) 이 창을 띄우고 `.` 을 보내 추적을 읽는 식으로 했다.
 `fixtures/dot-arrow/.vscode/settings.json`(설정 켬)은 그때 만든 것으로 커밋 안 됐다.
+
+**9/22 밤 — 변환 직후 `Backspace` 한 번이 `->` 둘을 지운다.** 변환이 컨텍스트 키
+`assist.dotArrow.arrowAtCursor` 를 켜고 커서가 움직이면(`onDidChangeTextEditorSelection`) 끈다.
+`package.json` 의 `backspace` 바인딩은 그 키가 켜진 동안만 `assist.dotArrow.deleteArrow` 로 간다.
+명령은 커서 왼쪽 두 글자가 정말 `->` 인지 다시 보고, 아니면 `deleteLeft` 로 넘긴다. 점은 돌아오지
+않는다 — 점을 되살리는 길은 그대로 `Ctrl+Z`. `contributes.commands` 에는 안 넣었다(팔레트 불필요,
+nls 안 늘어남). 이 PC 의 확장 33개 중 `Backspace` 를 잡는 것은 Markdown All in One 하나이고
+`editorLangId` 가 markdown 일 때뿐이라 안 겹친다. **Vim 계열 확장과 같은 키를 같은 조건으로 잡았을
+때 확장끼리 누가 이기는지는 문서에 없어 모른다** — 어느 쪽이 이겨도 한 글자만 지워지는 차이다.

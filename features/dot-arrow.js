@@ -218,15 +218,76 @@ async function onChange(event) {
   edit.replace(document.uri, new vscode.Range(dot, after), '->');
   const applied = await vscode.workspace.applyEdit(edit);
   trace(`dot arrow: ${applied ? 'converted' : 'edit refused'} - ${counted}`);
+  if (applied) await remember(document, dot.translate(0, 2));
+}
+
+// --- Backspace right after a conversion takes the whole arrow ----------------
+//
+// The user typed one character and got two. One Backspace should take both
+// back, the way it would have taken the dot; leaving `-` behind makes the
+// feature something to fight with.
+//
+// Claiming Backspace is done with a context key that is true only from the
+// conversion until the cursor moves. The keybinding in package.json fires only
+// while it holds, so everywhere else Backspace is not this extension's
+// business. The command still checks the document before deleting, and hands
+// over to the ordinary Backspace when the arrow is not in fact there: the key
+// is a hint about where the cursor is, not proof of what is under it.
+
+const ARROW_AT_CURSOR = 'assist.dotArrow.arrowAtCursor';
+
+/** @type {{document: vscode.TextDocument, position: vscode.Position} | null} */
+let arrow = null;
+
+/** @param {vscode.TextDocument} document @param {vscode.Position} position the end of the arrow */
+async function remember(document, position) {
+  arrow = { document, position };
+  await vscode.commands.executeCommand('setContext', ARROW_AT_CURSOR, true);
+}
+
+async function forget() {
+  if (!arrow) return;
+  arrow = null;
+  await vscode.commands.executeCommand('setContext', ARROW_AT_CURSOR, false);
+}
+
+/** @param {vscode.TextEditorSelectionChangeEvent} event */
+function onSelection(event) {
+  if (!arrow) return;
+  const { textEditor: editor, selections } = event;
+  const stayed =
+    editor.document === arrow.document &&
+    selections.length === 1 &&
+    selections[0].isEmpty &&
+    selections[0].active.isEqual(arrow.position);
+  if (!stayed) forget();
+}
+
+async function deleteArrow() {
+  const editor = vscode.window.activeTextEditor;
+  const here = arrow;
+  await forget();
+  const range = here && new vscode.Range(here.position.translate(0, -2), here.position);
+  if (!editor || !here || editor.document !== here.document || editor.document.getText(range) !== '->') {
+    trace('dot arrow: backspace, but no arrow at the cursor - ordinary delete');
+    await vscode.commands.executeCommand('deleteLeft');
+    return;
+  }
+  const done = await editor.edit((builder) => builder.delete(range));
+  trace(`dot arrow: backspace ${done ? 'took the arrow' : 'refused'}`);
 }
 
 /** @param {vscode.ExtensionContext} context */
 function activate(context) {
-  context.subscriptions.push(vscode.workspace.onDidChangeTextDocument(onChange));
+  context.subscriptions.push(
+    vscode.workspace.onDidChangeTextDocument(onChange),
+    vscode.window.onDidChangeTextEditorSelection(onSelection),
+  );
 }
 
 module.exports = {
   activate,
+  commands: { 'assist.dotArrow.deleteArrow': deleteArrow },
   // Exported for the checks: the two decisions this feature makes on its own,
   // apart from what the server answered.
   leftOfDot,

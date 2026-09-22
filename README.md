@@ -190,6 +190,13 @@ Three smaller decisions, in the order you would hit them:
 - The conversion is applied as an edit of its own, so **one `Ctrl+Z` brings the
   dot back** and leaves the typing before it alone. An automatic change you
   cannot undo in one press is not help, it is an argument.
+- **One `Backspace` right after the conversion takes the whole `->`.** You
+  typed one character and got two; the key that would have taken the dot takes
+  both. This is the only moment the extension claims `Backspace`: a context key
+  is set by the conversion and cleared as soon as the cursor moves, and the
+  keybinding fires only while it holds. Everywhere else `Backspace` is not this
+  extension's business, and `assist.keymap.enabled` turns this off with the
+  rest.
 - An answer that arrives **after anything else has been typed is dropped**. The
   question takes a moment, and in that moment the cursor can be a word further
   on; applying a stale yes there is the one way this can damage a file rather

@@ -14,13 +14,13 @@ cpptools, rust-analyzer, tsserver) 몫임. 이 성질도 깨지 않음 — 깨�
 
 | 파일 | 역할 |
 |---|---|
-| `extension.js` | 진입점. `features/` 목록을 돌며 `activate(context)`를 내보낸 기능을 부르고 명령을 등록하며, `deactivate`를 내보낸 기능은 창이 닫힐 때 부름. 셋 다 선택임 — `dot-arrow.js`는 명령이 없고 `activate`만 있음. 그 외 로직 없음. `onStartupFinished`로 켜지는 건 `trace.js`가 강제 종료로 남은 임시 파일을 지우기 위해서임 |
+| `extension.js` | 진입점. `features/` 목록을 돌며 `activate(context)`를 내보낸 기능을 부르고 명령을 등록하며, `deactivate`를 내보낸 기능은 창이 닫힐 때 부름. 셋 다 선택임 — `trace.js`는 `commands`와 `deactivate`, `dot-arrow.js`는 `activate`와 `commands`만 있음. 그 외 로직 없음. `onStartupFinished`로 켜지는 건 `trace.js`가 강제 종료로 남은 임시 파일을 지우기 위해서임 |
 | `features/round-trip.js` | `Alt+G`. provider를 전부 물어보고, 커서가 이미 있는 자리를 뺀 뒤, 하나면 점프하고 여럿이면 목록을 냄 |
 | `features/text-guess.js` | `Alt+G`의 보조. clangd 인덱스 진행률(`.cache/clangd/index` 파일 수 ÷ `compile_commands.json` 항목 수)과, 인덱스가 덜 됐을 때만 도는 텍스트 추측(VS Code 내장 ripgrep). clangd가 없거나 `clangd.enable: false`면 둘 다 안 함 — cpptools 답을 끝까지 기다림. 명령 없음 — `round-trip.js`가 부름. 결과를 저장하지 않으므로 "인덱스를 갖지 않음"은 그대로임 |
 | `features/function-step.js` | `Ctrl+Shift+↑/↓`. 언어 서버의 문서 심볼에서 함수·메서드·생성자 이름 줄만 골라 이전·다음으로 이동 |
 | `features/symbol-search.js` | `Shift+Alt+S`. 자체 심볼 검색 창. 서버에서 빈 검색어 결과와 입력 결과를 받아 이 확장이 직접 fuzzy로 거름. 창의 버튼으로 fuzzy를 켜고 끔 |
 | `features/process-attach.js` | `Ctrl+Alt+P`·`Shift+Alt+P`. C/C++ 확장의 프로세스 선택기(`extension.pickNativeProcess`)와 `cppvsdbg` 디버거로 연결·다시 연결. 다시 연결은 마지막 실행 파일 이름을 `tasklist`로 찾음. Windows 전용 |
-| `features/dot-arrow.js` | `assist.dotArrow.enabled`(기본 꺼짐). C·C++·CUDA에서 `.` 한 글자를 입력하면 그 뒤 자리에 자동 완성을 물어, **그 목록에서 점으로 닿을 수 있는 것이 하나도 없을 때만** 점을 `->`로 바꿈(= 모든 항목이 점을 덮는 화살표 편집을 달고 옴). **화살표가 하나라도 있으면 바꾸는 첫 판은 틀렸음** — `operator->`가 있는 클래스도 화살표를 답해서 `unique_ptr.reset()`이 `->reset()`이 됐음. 점 그대로인 항목이 0개일 것까지 요구해야 스마트 포인터·반복자가 남음(clangd 18 실측: 날 포인터 2+0, `unique_ptr` 2+5, `shared_ptr` 2+10, `vector::iterator` 2+1). 완성 항목의 멤버 이름은 넣지 않고 점만 바꿈. 늦게 온 답은 `document.version`으로 버리고, `WorkspaceEdit`로 적용해 `Ctrl+Z` 한 번에 점이 돌아옴. **키도 명령도 없는 유일한 기능** — `activate`에서 `onDidChangeTextDocument`를 걺. 돌다가 멈추는 자리마다 `trace()` 한 줄을 남김 — 조용히 아무것도 안 하면 꺼진 것과 구분이 안 돼서임 |
+| `features/dot-arrow.js` | `assist.dotArrow.enabled`(기본 꺼짐). C·C++·CUDA에서 `.` 한 글자를 입력하면 그 뒤 자리에 자동 완성을 물어, **그 목록에서 점으로 닿을 수 있는 것이 하나도 없을 때만** 점을 `->`로 바꿈(= 모든 항목이 점을 덮는 화살표 편집을 달고 옴). **화살표가 하나라도 있으면 바꾸는 첫 판은 틀렸음** — `operator->`가 있는 클래스도 화살표를 답해서 `unique_ptr.reset()`이 `->reset()`이 됐음. 점 그대로인 항목이 0개일 것까지 요구해야 스마트 포인터·반복자가 남음(clangd 18 실측: 날 포인터 2+0, `unique_ptr` 2+5, `shared_ptr` 2+10, `vector::iterator` 2+1). 완성 항목의 멤버 이름은 넣지 않고 점만 바꿈. 늦게 온 답은 `document.version`으로 버리고, `WorkspaceEdit`로 적용해 `Ctrl+Z` 한 번에 점이 돌아옴. **키로 부르는 기능이 아님** — `activate`에서 `onDidChangeTextDocument`를 걺. 변환 직후에는 컨텍스트 키 `assist.dotArrow.arrowAtCursor`를 켜고 커서가 움직이면 꺼서, **그 순간에만 `Backspace`가 `assist.dotArrow.deleteArrow`로 가 `->` 두 글자를 지움.** 명령은 지우기 전에 커서 왼쪽이 정말 `->`인지 다시 보고 아니면 `deleteLeft`로 넘김 — 컨텍스트 키는 커서가 어디 있는지의 힌트지 그 밑에 뭐가 있는지의 증거가 아님. `contributes.commands`에는 안 넣었음(팔레트에서 부를 일이 없고 nls가 안 늘어남). 돌다가 멈추는 자리마다 `trace()` 한 줄을 남김 — 조용히 아무것도 안 하면 꺼진 것과 구분이 안 돼서임 |
 | `features/trace.js` | 디버깅용 추적. 기본 꺼짐 — `assist.toggleTrace`로 켜면 키 한 번당 한 줄씩 단계별 시간을 **임시 파일**(`%TEMP%/assist-trace-<pid>-*.txt`)에 남기고 상태 표시줄에 표시(누르면 꺼짐). 끌 때 저장 위치를 묻고 임시 파일은 항상 지움. 창이 닫히면 `deactivate`가 지우고, 강제 종료로 남은 건 다음 시작 때 pid가 죽은 파일만 지움. 출력 채널은 안 씀 — VS Code가 세션 로그에 옮겨 적어서. 최근 200줄은 메모용으로 메모리에 둠. 기록 문장은 영어 그대로 |
 | `features/note.js` | `assist.saveNote`. 사용자 한 줄 + 언어 서버 버전·설정 + 커서 위치에서 단계별로 하나씩 잰 시간(`round-trip.js`의 `measure`) + 최근 기록을 저장 안 된 마크다운으로 엶. 회사 PC에서 겪은 걸 집에서 고칠 때 넘기는 용도. 키 없음 |
 | `tools/check-keys.js` | 키 충돌 검사기. 런타임 아님 — 바인딩을 **추가하기 전에** 돌림 |
@@ -37,7 +37,7 @@ cpptools, rust-analyzer, tsserver) 몫임. 이 성질도 깨지 않음 — 깨�
 | `package.nls.json` / `package.nls.ko.json` | 명령 제목과 설정 설명의 영어 원문과 한국어. `package.json`에는 `%키%`만 있음 |
 | `NEXT.md` | 세션 인수인계 노트. VSIX에는 안 들어감 |
 
-명령: `assist.roundTrip` `assist.roundTrip.explain` `assist.nextFunction` `assist.previousFunction` `assist.searchSymbols` `assist.attachToProcess` `assist.reattachToProcess` `assist.saveNote` `assist.toggleTrace`
+명령: `assist.roundTrip` `assist.roundTrip.explain` `assist.nextFunction` `assist.previousFunction` `assist.searchSymbols` `assist.attachToProcess` `assist.reattachToProcess` `assist.saveNote` `assist.toggleTrace` `assist.dotArrow.deleteArrow`(키 전용, 팔레트에 없음)
 설정: `assist.keymap.enabled` `assist.roundTrip.providers` `assist.roundTrip.searchByName` `assist.roundTrip.pickWhenAmbiguous` `assist.roundTrip.textSearch` `assist.symbolSearch.fuzzy` `assist.dotArrow.enabled`
 
 ## 기능을 더하는 비용은 두 갈래임
@@ -53,7 +53,7 @@ cpptools, rust-analyzer, tsserver) 몫임. 이 성질도 깨지 않음 — 깨�
 clangd는 이름 앞부분과 단어 머리글자만 맞춰서 `ce`(→ `Circle`) 같은 중간 건너뛰기에 0건을 줌
 (9/15 직접 LSP로 잼). 그래서 자체 창으로 바꿨음. `Ctrl+T`는 그대로 남음.
 
-**세 번째 갈래가 하나 생겼음 — 키도 명령도 없는 기능**(`dot-arrow.js`). 입력에 반응하므로
+**세 번째 갈래가 하나 생겼음 — 키로 시작하지 않는 기능**(`dot-arrow.js`). 입력에 반응하므로
 `contributes.keybindings`가 아니라 `contributes.configuration` 항목 하나로 들어가고,
 `extension.js`가 `activate(context)`를 불러 주면 거기서 이벤트를 걺. **이 갈래는 값이 비쌈** —
 끌 수단이 설정뿐이고, 사용자가 부르지 않았는데 도는 것이라 잘못 돌면 키가 안 먹는 것과 달리
