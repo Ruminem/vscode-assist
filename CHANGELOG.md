@@ -1,5 +1,13 @@
 # Changelog
 
+## 0.5.3 — 2026-09-22
+
+- `Alt+E` now shows its matches. In 0.5.2 the list went empty as soon as anything was typed.
+
+**한국어**
+
+- `Alt+E`가 찾은 파일을 보여 줌. 0.5.2에서는 한 글자만 쳐도 목록이 비었음.
+
 ## 0.5.2 — 2026-09-22
 
 - `Alt+E` opens a file search of its own. It also finds files when the letters were typed with the
