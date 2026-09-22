@@ -1,5 +1,13 @@
 # Changelog
 
+## 0.5.5 — 2026-09-23
+
+- Each row of the `Alt+G` menu now ends with the line of code it jumps to, so overrides can be told apart without opening them.
+
+**한국어**
+
+- `Alt+G` 메뉴의 항목마다 이동할 자리의 코드 한 줄이 붙음. 재정의가 여럿이어도 열어 보지 않고 구분됨.
+
 ## 0.5.4 — 2026-09-23
 
 - `Alt+F` finds every reference to the symbol under the cursor, the same as `Shift+Alt+F12`.
