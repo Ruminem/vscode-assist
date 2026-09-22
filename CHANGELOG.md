@@ -1,5 +1,19 @@
 # Changelog
 
+## 0.5.2 — 2026-09-22
+
+- `Alt+E` opens a file search of its own. It also finds files when the letters were typed with the
+  Korean input method still on - `뮻ㅇ` finds `abcd`. `Shift+Alt+O` still opens VS Code's Quick Open.
+- A dot after a call, a subscript or a cast now becomes `->` when the result is a pointer:
+  `MakeRaw().` turns into `MakeRaw()->`, while `vec.begin().` and other values keep their dot.
+
+**한국어**
+
+- `Alt+E`가 자체 파일 검색 창을 엶. 한글 입력기를 켠 채 친 글자로도 찾음 — `뮻ㅇ`으로 `abcd`를
+  찾음. `Shift+Alt+O`는 그대로 VS Code의 빠른 열기를 엶.
+- 호출·첨자·캐스트 뒤에 찍은 점도 결과가 포인터면 `->`가 됨. `MakeRaw().`는 `MakeRaw()->`가 되고,
+  `vec.begin().` 같은 값은 점이 그대로임.
+
 ## 0.5.1 — 2026-09-22
 
 - The dot-to-arrow conversion is now on by default. Set `assist.dotArrow.enabled` to `false` to
