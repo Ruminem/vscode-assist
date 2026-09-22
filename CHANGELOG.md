@@ -1,5 +1,15 @@
 # Changelog
 
+## 0.5.1 — 2026-09-22
+
+- The dot-to-arrow conversion is now on by default. Set `assist.dotArrow.enabled` to `false` to
+  turn it off, globally or in a `[cpp]` block.
+
+**한국어**
+
+- 점을 화살표로 바꾸는 기능이 기본 켜짐이 됨. 끄려면 `assist.dotArrow.enabled`를 전역이나 `[cpp]` 블록에서
+  `false`로 둠.
+
 ## 0.5.0 — 2026-09-22
 
 - A dot typed after a raw pointer in C, C++ and CUDA becomes `->` as you type. Off by default:
