@@ -1,5 +1,15 @@
 # Changelog
 
+## 0.5.4 — 2026-09-23
+
+- `Alt+F` finds every reference to the symbol under the cursor, the same as `Shift+Alt+F12`.
+  Pressed again in the References panel, it goes back to the editor instead of opening the File menu.
+
+**한국어**
+
+- `Alt+F`가 커서 위 심볼의 모든 참조를 찾음. `Shift+Alt+F12`와 같음.
+  참조 패널에서 한 번 더 누르면 파일 메뉴 대신 편집기로 돌아옴.
+
 ## 0.5.3 — 2026-09-22
 
 - `Alt+E` now shows its matches. In 0.5.2 the list went empty as soon as anything was typed.
