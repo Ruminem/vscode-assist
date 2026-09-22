@@ -28,7 +28,8 @@ VS Code ships `Go to Definition`, `Go to Declaration` and `Go to Implementation`
 as three one-way commands on three keys. `Alt+G` asks all of them at once and drops every
 answer that points at the place the cursor already is. One place left is a
 jump; several open a small menu at the cursor, with the one outside a header
-first.
+first. Each row ends with the line of code it lands on, so two overrides read as
+`Circle::area` and `Square::area` rather than as two line numbers.
 
 When those answers leave fewer than two places, it also looks the name up in
 the workspace symbol index. Those rows are guesses - an index knows names, not

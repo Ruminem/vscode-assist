@@ -380,7 +380,27 @@ function describe(hit) {
       : hit.kind === 'text'
         ? vscode.l10n.t('Text guess {0}% · {1}', hit.similarity, hit.label)
         : LABELS[hit.role || hit.kind] || hit.kind;
-  return `${source}  —  ${where(hit.loc)}`;
+  return `${source}  —  ${where(hit.loc)}${hit.text ? `  ·  ${hit.text}` : ''}`;
+}
+
+// A menu row has one line and no hover, so the line of code the row lands on is
+// the only preview it can carry. Long lines are cut, not wrapped - the menu is
+// as wide as its widest row.
+const PREVIEW_MAX = 80;
+
+/** @param {{loc: vscode.Location, text?: string}[]} hits */
+async function preview(hits) {
+  await Promise.all(
+    hits.map(async (hit) => {
+      try {
+        const doc = await vscode.workspace.openTextDocument(hit.loc.uri);
+        const text = doc.lineAt(hit.loc.range.start.line).text.trim().replace(/\s+/g, ' ');
+        hit.text = text.length > PREVIEW_MAX ? `${text.slice(0, PREVIEW_MAX - 1)}…` : text;
+      } catch {
+        // A file that will not open still gets its row, just without the line.
+      }
+    }),
+  );
 }
 
 /** @param {vscode.Location} loc */
@@ -412,7 +432,8 @@ let menuProvider = null;
  * @param {vscode.TextDocument} document @param {{kind: string, loc: vscode.Location}[]} hits
  * @param {string} note shown as a last row that goes nowhere - the index progress
  */
-function pick(document, hits, note) {
+async function pick(document, hits, note) {
+  await preview(hits);
   offered = { uri: document.uri.toString(), hits, note };
   // ponytail: registered on first use and never disposed - it lives exactly as
   // long as the extension host. Move to activate() if features grow a lifecycle.
