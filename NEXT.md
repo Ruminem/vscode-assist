@@ -122,7 +122,50 @@ ms**를 넣고 v0.3.1로 냈다. 회사 프로젝트는 `compile_commands.json` 
 namespace·클래스만 남기고, 이름 줄은 항상 공급자 답 아래로 보냈다. 픽스처 4번 기대값이 메뉴에서
 `shape.h:17` 점프로 바뀜. v0.3.2로 냈다. 이어서 **정의·선언을 찾았는데 namespace를 못 가리면 이름 줄을 전부 뺐다**(0.3.2는 그때 다 남겼음) — v0.3.3. ③ **가상 함수 표시.** C++에서 구현 답은 **재정의**로, `override`·`final` 키워드 자리에서 물은 정의 답은 **기반 가상 함수**로 붙였다(clangd 22에서 둘 다 확인). v0.3.4. ④ **fixture를 여덟 자리로 늘렸다** — `Square` 재정의, 기반 포인터 호출, 같은 이름의 두 namespace. clangd에 직접 붙인 하네스로 여덟 자리를 돌려 README 기대값을 뽑았다. 기반 가상 함수에서 clangd의 정의 답이 재정의 본체를 먼저 줘서 "재정의" 표시가 "정의"에 밀리던 걸 고쳤다. 두 번 다 마켓 워크플로가 `securityroles` 시간 초과였다.
 
+**9/22에 한 것 — `.` 을 `->` 로 바꾸는 기능.** `features/dot-arrow.js`, 설정
+`assist.dotArrow.enabled`, **기본 꺼짐**. 요점은 **포인터인지를 우리가 판단하지 않는 것**이다.
+점 뒤에서 자동 완성을 물으면, 식이 포인터라는 것을 아는 서버는 **점을 덮어 `->` 를 쓰는 편집**을
+답해 준다(clangd). 그 편집이 있는지만 보고 점만 바꾼다 — 완성 항목의 멤버 이름은 안 넣는다.
+호버로 타입 문자열을 받아 `*` 로 끝나는지 보는 쪽은 **안 만들었다.** 회사 설정이
+`C_Cpp.hover: "disabled"` 라 cpptools 는 호버에 답하지 않고, 자동 완성 경로가 되면 스마트
+포인터·반복자·주석·문자열 제외가 전부 공짜로 따라오기 때문이다(`.reset()` 앞의 점은 서버가
+바꾸자고 하지 않는다). 늦게 온 답은 `document.version` 으로 버리고, `WorkspaceEdit` 로 적용해
+`Ctrl+Z` 한 번에 점이 돌아온다. 숫자 뒤(`3.14`)와 `)`·`]` 뒤는 아예 묻지 않는다.
+**이 저장소에서 키도 명령도 없는 첫 기능**이라 `extension.js` 가 `activate(context)` 를 받게 두 줄
+늘었다. 컨테이너에서 잰 것: `leftOfDot`·`saysPointer` 갈래 20개와 nls 키 대조 통과, 변이 둘을
+넣어 각각 8건·1건이 실제로 걸리는 것까지 봤다. **VS Code 안에서는 아무도 안 돌려봤다.**
+
+**9/22 — 회사 PC 설정이 9/21에 정리됐다. 아래 "다음 할 것" 중 성능 항목들은 그 전제로 쓰였다.**
+그 PC 의 구성 문서 기준: clangd 가 IntelliSense 전부를 맡고(`clangd.enable: true`,
+`--background-index -j=8`, clangd 22.1.6), cpptools 는 **서식(vcFormat)과 디버거만** 남기려고
+엔진은 `default` 로 두되 `autocomplete`·`errorSquiggles`·`hover` 를 `disabled` 로 껐다. 엔진을
+`disabled` 로 하면 vcFormat 도 같이 꺼져서 그렇게 한 것이다. 한 작업 영역에 9/16부터 남아 있던
+`clangd.enable: false` 도 9/22에 걷어냈다 — 그동안 그 창에서는 clangd 가 아예 안 떠 있었다.
+**`Alt+G` 가 5초 걸리던 관측은 그 상태의 것일 가능성이 크다.** 사용자 체감으로는 지금 안 느리다.
+
 **다음 할 것**
+- **`.`→`->` 를 VS Code 에서 처음 돌려볼 것.** `fixtures/dot-arrow/` 열세 자리. 제일 먼저 볼
+  것은 1번(날 포인터)이고, 안 되면 추적을 켜서 `dot arrow: no arrow edit … -` 뒤의 원문을
+  본다 — 거기 완성 항목의 `textEdit.newText` 앞머리가 찍힌다. clangd 가 그 편집을 **초기 응답**에
+  담는지 **resolve 뒤에** 담는지가 유일한 미확인 지점이고, resolve 라면
+  `executeCompletionItemProvider` 에 `itemResolveCount` 를 넘기는 한 줄이다.
+- **`editor.formatOnType: true` 와 부딪히는지 볼 것.** 전역 설정의 `[c]`·`[cpp]` 에 켜져 있고
+  포매터가 cpptools(vcFormat)다. `.` 이 on-type 서식의 트리거 문자면 우리 `WorkspaceEdit` 와
+  같은 순간에 서식 편집이 들어온다. **컨테이너에서는 못 재고 그 PC 에서만 보인다** — 1번 자리에서
+  `Ctrl+Z` 한 번에 점이 돌아오는지가 이게 깨끗한지 아닌지의 지표다.
+- **점 하나에 얼마 걸리는지.** 추적 줄의 ms. 타이핑 중에 도는 것이라 `Alt+G` 와 예산이 다르다 —
+  `Alt+G` 는 눌러서 기다리지만 이건 하루 수백 번이고 늦으면 커서가 튄다.
+- **메모 2 — `Alt+G` 목록에 함수 원형 붙이기.** 9/21 폰 메모. **주의: 그 메모는 목록이
+  QuickPick 이라는 전제로 쓰였는데 9/15부터 코드 액션 메뉴다**(`round-trip.js:403`). `CodeAction`
+  에는 `detail` 줄도 `onDidChangeActive` 도 없으니, 되는 것은 `describe()` 가 만드는 **title 한
+  줄에 시그니처를 이어 붙이는 것**뿐이다. 줄 읽기는 `lineText()`(`round-trip.js:188`)가 이미
+  있다. 값어치가 제일 큰 자리는 오버로드가 여럿일 때이고, `#ifdef` 조건 표시와 같은 칸이다.
+  미리보기(QuickPick 되돌리기 / Peek)는 별도 결정으로 미뤄 뒀다 — Peek 로 가면 `정의`·`재정의`·
+  `이름 검색 %` 라벨을 전부 잃는다.
+- **번역 키가 빠지면 실패하는 점검이 저장소에 없다.** 전역 규칙(`VS Code 확장 › UI 언어`)이
+  요구하는 것인데 `tools/` 에 없다. 이번엔 scratchpad 스크립트로 대신 봤고 그건 컨테이너와 함께
+  사라진다. `tools/check-nls.js` 로 넣을 것 — `package.json` 의 `%키%` 와 두 nls 파일, 그리고
+  `l10n/bundle.l10n.ko.json` 의 키가 `vscode.l10n.t()` 원문과 글자까지 같은지까지.
 - **회사 PC에서 v0.4.5로 느린 곳 재기.** 평소대로 쓰다가 느리면 그 자리에서 `Assist: 방금 이상했던 점을 메모로 남기기` → 메모를 집으로 가져올 것. 표에서 볼 것: 기반 가상 함수 줄(B1 — 안 열린 헤더를 여는지), 이름 검색 개수(C1), 코드 액션 수집 시간(C2), 빈 검색어 전체 목록 개수(C3), 정의를 두 번 물었을 때 첫 번째만 느린지(C4). 더 길게 보려면 `Assist: 추적 시작/종료`로 켜고 재현한 뒤 끄면서 텍스트 파일로 저장(v0.4.6부터 — 0.4.5는 출력 채널에 늘 켜져 있었음). 숫자 보고 B1·C 중 뭘 고칠지 정함.
 - **`#ifdef` 버전 측정.** 픽스처 9·10번(`fixtures/round-trip/README.md` 끝). cpptools(`clangd.enable: false`)와 clangd에서 각각 `Explain`을 찍어, 꺼진 버전(`platform.cpp:6`·`:10`, `platform_stub.cpp:6`)이 이름 검색 원본에 오는지 볼 것. cpptools가 주면 이름 검색 답에서 골라 `#if` 조건 줄을 라벨로 붙이고, 안 주면 텍스트 추측 조건을 넓히는 쪽. 9/17의 clangd 꺼짐 수정은 v0.4.4로 냄 — 회사 PC에서 cpptools만 켠 채 `Alt+G`가 끊기지 않는지 볼 것.
 - **0.4.2 성능 정리 확인.** `Alt+G`가 가상 함수 확인용으로 헤더를 `openTextDocument`로 열어 clangd가 그 파일을 파싱하던 걸 디스크 읽기로 바꿨다(픽스처에서 호출 2~5회 → 0회). 텍스트 추측은 후보 50개가 차면 ripgrep을 바로 끈다(파일 2만 개에서 0.65~1.3초 → 0.06~0.09초). 회사 PC에서 `Alt+G` 뒤 clangd CPU가 덜 튀는지 볼 것.

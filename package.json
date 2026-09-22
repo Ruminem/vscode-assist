@@ -142,6 +142,17 @@
             "markdownDescription": "%config.symbolSearch.fuzzy%"
           }
         }
+      },
+      {
+        "title": "%config.dotArrow.title%",
+        "properties": {
+          "assist.dotArrow.enabled": {
+            "type": "boolean",
+            "default": false,
+            "scope": "language-overridable",
+            "markdownDescription": "%config.dotArrow.enabled%"
+          }
+        }
       }
     ]
   }

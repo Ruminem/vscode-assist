@@ -9,11 +9,16 @@ const vscode = require('vscode');
 //
 // Adding one of those is: a file in features/, a line in this list, and a
 // contributes entry. Nothing else in this file changes.
+//
+// A feature that answers something other than a key press - dot-arrow watches
+// what is typed - exports activate(context) as well and puts its listener
+// there, so that nothing registers a listener merely by being required.
 const FEATURES = [
   require('./features/round-trip'),
   require('./features/function-step'),
   require('./features/symbol-search'),
   require('./features/process-attach'),
+  require('./features/dot-arrow'),
   require('./features/note'),
   require('./features/trace'),
 ];
@@ -21,7 +26,8 @@ const FEATURES = [
 /** @param {vscode.ExtensionContext} context */
 function activate(context) {
   for (const feature of FEATURES) {
-    for (const [id, handler] of Object.entries(feature.commands)) {
+    if (feature.activate) feature.activate(context);
+    for (const [id, handler] of Object.entries(feature.commands || {})) {
       context.subscriptions.push(vscode.commands.registerCommand(id, handler));
     }
     // Disposed when the window closes, which is a feature's last chance to clean up.

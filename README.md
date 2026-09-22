@@ -142,6 +142,50 @@ work, and this extension only asks it to. They are bound on Windows only, where
 that debugger can attach from a process id alone. The process attached last is
 forgotten when the window reloads.
 
+## Turning a dot into an arrow
+
+In C and C++, a `.` typed after a pointer is a slip of the hand every time, and
+the fix is always the same three keystrokes back. Set
+`assist.dotArrow.enabled` and the dot becomes `->` as you type.
+
+**It is off by default**, and that is the point rather than caution. Everything
+else here waits to be asked: you press a key, something happens. This one
+changes what you typed without being asked, and a setting that does that should
+be one you turned on yourself. Turn it on for a workspace, or for one language
+with a `"[cpp]"` block.
+
+**Whether the thing on the left is a pointer is not decided here.** Right after
+the dot, the language server is asked what could be completed at that spot. A
+server that knows the expression is a pointer answers with an edit that reaches
+back over the dot and writes `->` in its place - clangd does this, and it is
+what the whole feature reads. Only the dot is then replaced; the member name
+that came with the completion is not inserted.
+
+Reading the server's answer rather than the name of a type is what makes this
+safe for free. A smart pointer and an iterator are exactly the cases a rule
+would get wrong: `unique_ptr::reset`, `shared_ptr::get` and `it->` all exist,
+and only the writer knows which was meant. Nothing offers to rewrite those
+dots, so nothing here has to hold a list of exceptions and keep it correct.
+It also means this extension still has no parser - the standing rule here - and
+that a server which does not offer the fix simply leaves your dot alone.
+
+Three smaller decisions, in the order you would hit them:
+
+- The conversion is applied as an edit of its own, so **one `Ctrl+Z` brings the
+  dot back** and leaves the typing before it alone. An automatic change you
+  cannot undo in one press is not help, it is an argument.
+- An answer that arrives **after anything else has been typed is dropped**. The
+  question takes a moment, and in that moment the cursor can be a word further
+  on; applying a stale yes there is the one way this can damage a file rather
+  than merely annoy.
+- A dot after a digit (`3.14`) is never asked about, and a dot after `)` or `]`
+  is left alone for now. The type of a whole expression is a harder question
+  than the type of a name, and answering it is not worth a wrong arrow yet.
+
+`fixtures/dot-arrow/` holds every one of these cases in one file, with what to
+expect at each. Turn tracing on to see what the server answered and how long it
+took per dot.
+
 ## When it feels slow
 
 **Assist: Start or stop tracing** is a debugging aid, off until you start it.
@@ -224,6 +268,7 @@ only thing that can give it back.
 | `assist.roundTrip.pickWhenAmbiguous` | `true` | Show a menu when several locations answer. |
 | `assist.roundTrip.textSearch` | `true` | While clangd's index is incomplete, add text guesses with a similarity percentage. |
 | `assist.symbolSearch.fuzzy` | `true` | Start `Shift+Alt+S` with fuzzy matching on. |
+| `assist.dotArrow.enabled` | `false` | Turn a `.` typed after a pointer into `->`, in C, C++ and CUDA. |
 
 ## Rebinding
 

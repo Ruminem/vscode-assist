@@ -3,3 +3,4 @@ node_modules/
 
 .cache/
 fixtures/round-trip/compile_commands.json
+fixtures/dot-arrow/compile_commands.json
