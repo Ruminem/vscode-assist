@@ -22,6 +22,7 @@
     "check-keys": "node tools/check-keys.js",
     "check-nls": "node tools/check-nls.js",
     "check-dot-arrow": "node tools/check-dot-arrow.js",
+    "check-fuzzy": "node tools/check-fuzzy.js",
     "probe-clangd": "node tools/probe-clangd.js",
     "icon": "node tools/make-icon.js",
     "release": "node tools/release.js"
@@ -33,6 +34,7 @@
       { "command": "assist.nextFunction", "title": "%command.nextFunction.title%" },
       { "command": "assist.previousFunction", "title": "%command.previousFunction.title%" },
       { "command": "assist.searchSymbols", "title": "%command.searchSymbols.title%" },
+      { "command": "assist.searchFiles", "title": "%command.searchFiles.title%" },
       { "command": "assist.attachToProcess", "title": "%command.attachToProcess.title%" },
       { "command": "assist.reattachToProcess", "title": "%command.reattachToProcess.title%" },
       { "command": "assist.saveNote", "title": "%command.saveNote.title%" },
@@ -52,6 +54,11 @@
       {
         "command": "assist.searchSymbols",
         "key": "shift+alt+s",
+        "when": "config.assist.keymap.enabled"
+      },
+      {
+        "command": "assist.searchFiles",
+        "key": "alt+e",
         "when": "config.assist.keymap.enabled"
       },
       {

@@ -17,6 +17,7 @@ const FEATURES = [
   require('./features/round-trip'),
   require('./features/function-step'),
   require('./features/symbol-search'),
+  require('./features/file-search'),
   require('./features/process-attach'),
   require('./features/dot-arrow'),
   require('./features/note'),

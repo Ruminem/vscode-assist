@@ -19,12 +19,16 @@ cpptools, rust-analyzer, tsserver) 몫임. 이 성질도 깨지 않음 — 깨�
 | `features/text-guess.js` | `Alt+G`의 보조. clangd 인덱스 진행률(`.cache/clangd/index` 파일 수 ÷ `compile_commands.json` 항목 수)과, 인덱스가 덜 됐을 때만 도는 텍스트 추측(VS Code 내장 ripgrep). clangd가 없거나 `clangd.enable: false`면 둘 다 안 함 — cpptools 답을 끝까지 기다림. 명령 없음 — `round-trip.js`가 부름. 결과를 저장하지 않으므로 "인덱스를 갖지 않음"은 그대로임 |
 | `features/function-step.js` | `Ctrl+Shift+↑/↓`. 언어 서버의 문서 심볼에서 함수·메서드·생성자 이름 줄만 골라 이전·다음으로 이동 |
 | `features/symbol-search.js` | `Shift+Alt+S`. 자체 심볼 검색 창. 서버에서 빈 검색어 결과와 입력 결과를 받아 이 확장이 직접 fuzzy로 거름. 창의 버튼으로 fuzzy를 켜고 끔 |
+| `features/fuzzy.js` | 질의와 이름을 맞추고 맞은 글자를 굵게 그리는 순수 함수 넷. **원래 `symbol-search.js` 안에 있었는데 파일 검색이 같은 걸 원해서 뺐음** — 문자열만 다루므로 심볼 이름과 파일 경로가 같은 점수 로직을 지남. `startsWord` 의 단어 경계에 `/`·`\`·`-`·`.` 를 더했음(경로 조각과 확장자). 심볼 이름엔 그 글자가 거의 없어 기존 점수는 사실상 안 변함 |
+| `features/hangul.js` | 한글 → 그 자모를 낸 두벌식 키. `뮻ㅇ` → `abcd`. 완성형은 초·중·종성으로 쪼개고 낱자는 바로 찾음. 겹모음·겹받침은 키 두 개(`ㅘ`→`hk`). 영문·숫자·기호는 그대로 지나감. **언어를 판별하지 않음** — `readings()` 가 원문과 키 읽기 둘을 내놓고 점수가 높은 쪽이 이김. 그래서 한국어로 된 파일 이름도 그대로 찾힘 |
+| `features/file-search.js` | `Alt+E`. 자체 파일 검색 창. `findFiles('**/*', undefined, 20000)` 로 목록을 한 번 긁고(두 번째 인자가 `undefined` 라야 `files.exclude`·`search.exclude` 가 적용됨. `null` 이면 전부 포함) 입력마다 `fuzzy.js` 로 점수를 매김. **`Shift+Alt+O` 의 Quick Open 은 그대로 둠** — 확장이 그 창의 입력을 읽거나 매처를 바꿀 API 가 없어서 한글 변환을 넣을 수 없음. 대신 키를 하나 더한 것(`키를 더하지, 뺏지 않음`). Quick Open 의 `:42`·`@심볼`·최근 연 파일 순서는 여기 없음 |
 | `features/process-attach.js` | `Ctrl+Alt+P`·`Shift+Alt+P`. C/C++ 확장의 프로세스 선택기(`extension.pickNativeProcess`)와 `cppvsdbg` 디버거로 연결·다시 연결. 다시 연결은 마지막 실행 파일 이름을 `tasklist`로 찾음. Windows 전용 |
 | `features/dot-arrow.js` | `assist.dotArrow.enabled`(기본 켜짐, 0.5.1부터). C·C++·CUDA에서 `.` 한 글자를 입력하면 그 뒤 자리에 자동 완성을 물어, **그 목록에서 점으로 닿을 수 있는 것이 하나도 없을 때만** 점을 `->`로 바꿈(= 모든 항목이 점을 덮는 화살표 편집을 달고 옴). **화살표가 하나라도 있으면 바꾸는 첫 판은 틀렸음** — `operator->`가 있는 클래스도 화살표를 답해서 `unique_ptr.reset()`이 `->reset()`이 됐음. 점 그대로인 항목이 0개일 것까지 요구해야 스마트 포인터·반복자가 남음(clangd 18 실측: 날 포인터 2+0, `unique_ptr` 2+5, `shared_ptr` 2+10, `vector::iterator` 2+1). 완성 항목의 멤버 이름은 넣지 않고 점만 바꿈. 늦게 온 답은 `document.version`으로 버리고, `WorkspaceEdit`로 적용해 `Ctrl+Z` 한 번에 점이 돌아옴. **키로 부르는 기능이 아님** — `activate`에서 `onDidChangeTextDocument`를 걺. 변환 직후에는 컨텍스트 키 `assist.dotArrow.arrowAtCursor`를 켜고 커서가 움직이면 꺼서, **그 순간에만 `Backspace`가 `assist.dotArrow.deleteArrow`로 가 `->` 두 글자를 지움.** 명령은 지우기 전에 커서 왼쪽이 정말 `->`인지 다시 보고 아니면 `deleteLeft`로 넘김 — 컨텍스트 키는 커서가 어디 있는지의 힌트지 그 밑에 뭐가 있는지의 증거가 아님. `contributes.commands`에는 안 넣었음(팔레트에서 부를 일이 없고 nls가 안 늘어남). 돌다가 멈추는 자리마다 `trace()` 한 줄을 남김 — 조용히 아무것도 안 하면 꺼진 것과 구분이 안 돼서임 |
 | `features/trace.js` | 디버깅용 추적. 기본 꺼짐 — `assist.toggleTrace`로 켜면 키 한 번당 한 줄씩 단계별 시간을 **임시 파일**(`%TEMP%/assist-trace-<pid>-*.txt`)에 남기고 상태 표시줄에 표시(누르면 꺼짐). 끌 때 저장 위치를 묻고 임시 파일은 항상 지움. 창이 닫히면 `deactivate`가 지우고, 강제 종료로 남은 건 다음 시작 때 pid가 죽은 파일만 지움. 출력 채널은 안 씀 — VS Code가 세션 로그에 옮겨 적어서. 최근 200줄은 메모용으로 메모리에 둠. 기록 문장은 영어 그대로 |
 | `features/note.js` | `assist.saveNote`. 사용자 한 줄 + 언어 서버 버전·설정 + 커서 위치에서 단계별로 하나씩 잰 시간(`round-trip.js`의 `measure`) + 최근 기록을 저장 안 된 마크다운으로 엶. 회사 PC에서 겪은 걸 집에서 고칠 때 넘기는 용도. 키 없음 |
 | `tools/check-keys.js` | 키 충돌 검사기. 런타임 아님 — 바인딩을 **추가하기 전에** 돌림 |
 | `tools/check-nls.js` | 번역 누락 검사기. 런타임 아님 — `npm run check-nls`, 내면서 돌림. `package.json`의 `%키%`와 두 nls 파일을 양방향으로 맞춰 보고, `vscode.l10n.t()` 원문과 `l10n/bundle.l10n.ko.json` 키를 양방향으로 맞춰 봄. `{0}` 자리 개수 어긋남, 줄바꿈 대신 들어간 역슬래시와 n(v0.1.0 버그), 번역문 안의 `$(...)` 아이콘도 잡음. **번역이 빠져도 영어로 나올 뿐 실패하지 않으므로 이게 유일한 그물임.** `l10n.t()`를 변수로 부르면 잡을 수 없으니 그것도 문제로 보고함 |
+| `tools/check-fuzzy.js` | `hangul.js` 의 변환 표와 `fuzzy.js` 의 경로 점수 검사. `npm run check-fuzzy`. 에디터 없이 돎. **표 한 칸을 틀리면 5건, 단어 경계를 옛것으로 되돌리면 5건이 실패하는 것을 확인했음** |
 | `tools/check-dot-arrow.js` | `dot-arrow.js`가 서버 없이 스스로 내리는 두 판정(`leftOfDot`·`countEdits`) 검사. `npm run check-dot-arrow`. 에디터도 언어 서버도 안 띄우고 `vscode` 모듈을 최소한으로 흉내 냄. **옛 규칙(화살표 하나면 변환)으로 되돌리면 2건이 실패하도록 박아 뒀음** |
 | `tools/probe-clangd.js` | clangd 탐침. `npm run probe-clangd`. LSP 로 clangd 에 직접 붙어 픽스처 자리마다 `.` 을 넣고 **화살표 편집을 단 항목 수와 점 그대로인 항목 수**를 찍음. 판정 칸은 `dot-arrow.js` 의 `countEdits` 를 그대로 불러서 내므로 **진짜 서버 답에 진짜 규칙을 먹인 결과**임 — 규칙을 여기 베껴 두지 않았음. 기대값은 픽스처 README 한 곳에만 있고 이 도구는 재기만 함. `--clangd=<경로>` 나 `CLANGD` 로 지정, 없으면 PATH 에서 찾음. **못 재면 종료 코드 2** — 1 이 아닌 이유는 "못 쟀다"가 "쟀는데 틀렸다"로 읽히면 안 되기 때문임. `unique_ptr` 버그를 잡은 게 이 도구임 |
 | `tools/release.js` | 태그를 `package.json` 버전에서 만듦. 인자 없이 돌리면 점검만 하고, `--push`면 태그를 만들어 밈. neon-glow에서 가져옴 |
@@ -37,7 +41,7 @@ cpptools, rust-analyzer, tsserver) 몫임. 이 성질도 깨지 않음 — 깨�
 | `package.nls.json` / `package.nls.ko.json` | 명령 제목과 설정 설명의 영어 원문과 한국어. `package.json`에는 `%키%`만 있음 |
 | `NEXT.md` | 세션 인수인계 노트. VSIX에는 안 들어감 |
 
-명령: `assist.roundTrip` `assist.roundTrip.explain` `assist.nextFunction` `assist.previousFunction` `assist.searchSymbols` `assist.attachToProcess` `assist.reattachToProcess` `assist.saveNote` `assist.toggleTrace` `assist.dotArrow.deleteArrow`(키 전용, 팔레트에 없음)
+명령: `assist.roundTrip` `assist.roundTrip.explain` `assist.nextFunction` `assist.previousFunction` `assist.searchSymbols` `assist.attachToProcess` `assist.reattachToProcess` `assist.saveNote` `assist.toggleTrace` `assist.searchFiles` `assist.dotArrow.deleteArrow`(키 전용, 팔레트에 없음)
 설정: `assist.keymap.enabled` `assist.roundTrip.providers` `assist.roundTrip.searchByName` `assist.roundTrip.pickWhenAmbiguous` `assist.roundTrip.textSearch` `assist.symbolSearch.fuzzy` `assist.dotArrow.enabled`
 
 ## 기능을 더하는 비용은 두 갈래임
@@ -47,11 +51,18 @@ cpptools, rust-analyzer, tsserver) 몫임. 이 성질도 깨지 않음 — 깨�
 - **키만 필요한 기능** — `contributes` 항목 하나
 
 **두 번째가 기본임.** VS Code에 이미 명령이 있으면 코드를 쓰지 않음. 지금 실린 것 중
-코드가 든 건 `Alt+G`(`Alt+D`), `Ctrl+Shift+↑/↓`, `Shift+Alt+S`, `Ctrl+Alt+P`·`Shift+Alt+P`이고, `Shift+Alt+O`·`Alt+M`은
+코드가 든 건 `Alt+G`(`Alt+D`), `Ctrl+Shift+↑/↓`, `Shift+Alt+S`, `Alt+E`, `Ctrl+Alt+P`·`Shift+Alt+P`이고, `Shift+Alt+O`·`Alt+M`은
 기존 명령에 키만 더 단 것임. **`Shift+Alt+S`는 원래 `Ctrl+T`에 키만 단 것이었음.** 기본 심볼
 검색 창은 서버가 준 결과를 자기 fuzzy로 다시 거를 뿐이라, 서버가 0건을 주면 보여줄 게 없음.
 clangd는 이름 앞부분과 단어 머리글자만 맞춰서 `ce`(→ `Circle`) 같은 중간 건너뛰기에 0건을 줌
 (9/15 직접 LSP로 잼). 그래서 자체 창으로 바꿨음. `Ctrl+T`는 그대로 남음.
+
+**`Alt+E`(파일 검색)도 같은 벽에서 나왔음.** 한글 IME 를 켠 채 `abcd` 를 치면 화면에는 `뮻ㅇ`
+이 남는데, `Shift+Alt+O` 의 Quick Open 은 **입력을 읽는 이벤트도 매처를 바꾸는 API 도 없음**
+(`registerFileSearchProvider` 는 proposed 이고 가상 파일 시스템용이라 이 일에 안 맞음). 확장이
+그 창에 할 수 있는 건 여는 것뿐임. 그래서 자체 창을 새 키에 붙였고 **Quick Open 은 그대로 뒀음**
+— 손버릇을 안 뺏는 쪽이 이 저장소의 1번 원칙이고, 그 창의 `:42`·`@심볼`·최근 연 파일 순서를
+다시 만들 값어치는 없음.
 
 **세 번째 갈래가 하나 생겼음 — 키로 시작하지 않는 기능**(`dot-arrow.js`). 입력에 반응하므로
 `contributes.keybindings`가 아니라 `contributes.configuration` 항목 하나로 들어가고,

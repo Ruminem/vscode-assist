@@ -9,13 +9,14 @@ Navigation shortcuts VS Code does not ship, bound to keys VS Code does not use.
 | `Alt+G` / `Alt+D` | Go to the definition. Press it on the definition and it goes back to the declaration. |
 | `Ctrl+Shift+↓` / `Ctrl+Shift+↑` | Jump to the next / previous function in this file. |
 | `Shift+Alt+S` | Search symbols in the workspace, with fuzzy matching you can switch off. |
+| `Alt+E` | Search files in the workspace, and find them through a Korean keyboard too. |
 | `Ctrl+Alt+P` | Attach the debugger to a running process. |
 | `Shift+Alt+P` | Attach again to the process attached last. |
 | `Shift+Alt+O` | Open a file anywhere in the workspace. |
 | `Alt+M` | List the symbols in this file. |
 
 The last two are VS Code's own `Ctrl+P` and `Ctrl+Shift+O` under a second key.
-The first five rows are the ones that needed code.
+The first six rows are the ones that needed code.
 
 Verified on Windows only. The macOS and Linux keys are in the manifest, but
 nobody has run them.
@@ -208,6 +209,28 @@ Three smaller decisions, in the order you would hit them:
 expect at each. Turn tracing on to see what the server answered and how long it
 took per dot.
 
+## Searching files
+
+`Alt+E` opens a file search of this extension's own. Type any letters of the
+path in order - `fda` reaches `features/dot-arrow.js` - and the letters that
+matched are drawn in bold.
+
+**It also finds files through a Korean keyboard.** Code is written in English
+and file names follow it, but an input method left switched on does not know
+that: reaching for `abcd` puts `뮻ㅇ` in the box, because the keys land as jamo
+and the jamo compose into syllables. Every jamo came from exactly one key, so
+the query is simply read twice - as itself, and as the keys that produced it -
+and whichever reading scores higher is the one you see. Nothing detects a
+language and nothing is guessed at, so a file actually named in Korean still
+matches as itself.
+
+**`Shift+Alt+O` still opens VS Code's own file picker, unchanged.** That is not
+a hedge: an extension cannot read what is typed into that box, cannot replace
+the matcher behind it, and can only open it. So this is a second key rather than
+a replacement - keys are added here, not taken - and VS Code's picker keeps what
+it is better at: `:42` to jump to a line, `@` for symbols, and the recently
+opened files it offers before you type anything. This window has none of those.
+
 ## When it feels slow
 
 **Assist: Start or stop tracing** is a debugging aid, off until you start it.
@@ -335,6 +358,7 @@ Two more, for the dot-to-arrow conversion:
 
 ```
 npm run check-dot-arrow      the two decisions it makes without a server
+npm run check-fuzzy          the Hangul table and how paths score
 npm run probe-clangd         what clangd actually answers, over LSP
 ```
 

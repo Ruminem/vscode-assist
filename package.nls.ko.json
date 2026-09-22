@@ -4,6 +4,7 @@
   "command.nextFunction.title": "Assist: 이 파일의 다음 함수",
   "command.previousFunction.title": "Assist: 이 파일의 이전 함수",
   "command.searchSymbols.title": "Assist: 작업 영역에서 기호 검색",
+  "command.searchFiles.title": "Assist: 파일 검색",
   "command.attachToProcess.title": "Assist: 실행 중인 프로세스에 디버거 연결",
   "command.reattachToProcess.title": "Assist: 마지막 프로세스에 디버거 다시 연결",
   "command.saveNote.title": "Assist: 방금 이상했던 점을 메모로 남기기",

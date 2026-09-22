@@ -4,6 +4,7 @@
   "command.nextFunction.title": "Assist: Next function in this file",
   "command.previousFunction.title": "Assist: Previous function in this file",
   "command.searchSymbols.title": "Assist: Search symbols in the workspace",
+  "command.searchFiles.title": "Assist: Search files",
   "command.attachToProcess.title": "Assist: Attach the debugger to a running process",
   "command.reattachToProcess.title": "Assist: Reattach the debugger to the last process",
   "command.saveNote.title": "Assist: Write a note about what just felt wrong",
