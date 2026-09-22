@@ -21,6 +21,7 @@
   "scripts": {
     "check-keys": "node tools/check-keys.js",
     "check-nls": "node tools/check-nls.js",
+    "check-dot-arrow": "node tools/check-dot-arrow.js",
     "icon": "node tools/make-icon.js",
     "release": "node tools/release.js"
   },

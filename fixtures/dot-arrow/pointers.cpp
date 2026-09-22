@@ -32,9 +32,15 @@ struct Owned {
   T& operator*();
 };
 
-// An iterator: both `.` and `->` mean something, and only the writer knows which.
+// An iterator: both `.` and `->` mean something, and only the writer knows
+// which. `base()` is not decoration - a stand-in type with nothing but
+// operators has no member a dot can reach, and then a dot really is always
+// wrong, which is the opposite of what this row is here to test. The iterators
+// this stands for do have one: libstdc++'s vector iterator answers a dot with
+// `base` untouched beside two arrowed members (measured on clangd 18).
 template <typename T>
 struct Cursor {
+  T* base();
   T* operator->();
   T& operator*();
   Cursor& operator++();

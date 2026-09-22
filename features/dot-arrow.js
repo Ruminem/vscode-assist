@@ -9,10 +9,10 @@ const { trace, since } = require('./trace');
 // another name.
 const LANGUAGES = new Set(['c', 'cpp', 'cuda-cpp']);
 
-// How many completion items are looked at for the fix. The servers that offer
-// it put it on the members they return first; reading the whole list of a big
-// class buys nothing and costs a loop on every dot.
-const LOOK_AT = 50;
+// Every item is read, not a prefix of them. One member that the dot reaches is
+// enough to call the whole thing off, and nothing says a server sorts those
+// last - std::string answers a dot with a hundred of them. The loop is cheap
+// in the case that matters: an answer where the dot reaches nothing is short.
 
 /**
  * The dot of a `pointer.member` typed just now, or null. Everything else is
@@ -55,51 +55,57 @@ function leftOfDot(text) {
 }
 
 /**
- * Whether the server's answer says the left side is a pointer.
+ * Whether an edit reaches back over the dot and writes `->` in its place.
+ * It has to cover the dot itself, not merely start at it: an insertion at that
+ * position is a different edit with the same address.
+ * @param {vscode.TextEdit | undefined} edit @param {vscode.Position} dot
+ */
+function rewritesTheDot(edit, dot) {
+  if (!edit || !edit.range || typeof edit.newText !== 'string') return false;
+  if (!edit.newText.startsWith('->')) return false;
+  return !edit.range.start.isAfter(dot) && edit.range.end.isAfter(dot);
+}
+
+/**
+ * How many of the server's completions rewrite the dot, and how many leave it.
  *
- * The type is never worked out here. A server that knows the expression is a
- * pointer says so in the completion itself, by handing back an edit that
- * reaches back over the dot and writes `->` in its place - clangd does this,
- * which is why this feature is a question rather than a rule. Reading the
- * answer instead of the type is what keeps `unique_ptr`, `shared_ptr` and
- * iterators safe for free: `.reset()` and `.get()` are the right thing to
- * write, so no server offers to rewrite the dot in front of them, and no list
- * of exceptions has to be kept here and kept correct.
+ * The type of the expression is never worked out here. Asked what could follow
+ * a dot, a server answers with the members that are actually reachable, and it
+ * marks the ones that need an arrow by handing back an edit that writes `->`
+ * over the dot - clangd does this, which is what the whole feature reads.
  *
- * The edit is read as evidence and then thrown away. Its text is `->member`,
- * the whole completion, and applying it would put a name there that nobody
+ * Both counts are needed, and the first version of this was wrong for having
+ * only one. A raw pointer has nothing a dot can reach, so every answer rewrites
+ * it. A class with `operator->` has its own members as well, so `unique_ptr`
+ * answers `up.` with `get` and `release` untouched **alongside** an arrowed
+ * `->Count()`, and converting on the arrow alone turns `.reset()` into
+ * `->reset()` - the exact accident this feature was supposed to avoid.
+ * Measured against clangd 18: a raw pointer 2 arrowed and 0 plain, unique_ptr
+ * 2 and 5, shared_ptr 2 and 10, vector::iterator 2 and 1, a value 0 and many.
+ *
+ * So the rule is not "the server offered an arrow" but **the dot reaches
+ * nothing**, which is the same sentence as "an arrow is the only thing that can
+ * work here" and is true of a raw pointer by definition. An item carrying no
+ * edit at all counts as plain: a server that does not say is a server this
+ * cannot read, and leaving the dot alone is the safe way to be wrong.
+ *
+ * The edits are read as evidence and thrown away. Their text is `->member`,
+ * the whole completion, and applying one would put a name there that nobody
  * typed. Only the dot is replaced, below.
  * @param {vscode.CompletionList | vscode.CompletionItem[] | undefined} answer
  * @param {vscode.Position} dot
+ * @returns {{arrowed: number, plain: number}}
  */
-function saysPointer(answer, dot) {
+function countEdits(answer, dot) {
   const items = (Array.isArray(answer) ? answer : answer && answer.items) || [];
-  for (const item of items.slice(0, LOOK_AT)) {
+  let arrowed = 0;
+  let plain = 0;
+  for (const item of items) {
     const edits = [item.textEdit, ...(item.additionalTextEdits || [])];
-    for (const edit of edits) {
-      if (!edit || !edit.range || typeof edit.newText !== 'string') continue;
-      if (!edit.newText.startsWith('->')) continue;
-      // The edit has to cover the dot itself, not merely start at it: an
-      // insertion at that position is a different edit with the same address.
-      if (edit.range.start.isAfter(dot) || !edit.range.end.isAfter(dot)) continue;
-      return true;
-    }
+    if (edits.some((edit) => rewritesTheDot(edit, dot))) arrowed++;
+    else plain++;
   }
-  return false;
-}
-
-/** The first few items, short, for a trace line that explains an answer that did not match. */
-function sample(answer) {
-  const items = (Array.isArray(answer) ? answer : answer && answer.items) || [];
-  return items
-    .slice(0, 3)
-    .map((item) => {
-      const edit = item.textEdit;
-      const text = edit && typeof edit.newText === 'string' ? JSON.stringify(edit.newText) : '-';
-      const extra = item.additionalTextEdits ? `+${item.additionalTextEdits.length}` : '';
-      return `${text.slice(0, 24)}${extra}`;
-    })
-    .join(' ');
+  return { arrowed, plain };
 }
 
 /** @param {vscode.TextDocumentChangeEvent} event */
@@ -114,16 +120,31 @@ async function onChange(event) {
   // The document rather than its uri: a uri alone resolves folder settings but
   // not a `"[cpp]"` block, and turning this on for one language is the way it
   // is meant to be turned on.
-  if (!vscode.workspace.getConfiguration('assist.dotArrow', document).get('enabled', false)) return;
+  if (!vscode.workspace.getConfiguration('assist.dotArrow', document).get('enabled', false)) {
+    trace('dot arrow: off - set assist.dotArrow.enabled to turn it on');
+    return;
+  }
 
   // The typing has to be the user's own, here, now: one cursor, sitting just
   // past the dot. An edit made anywhere else in a document that happens to be
-  // open is not a keystroke.
+  // open is not a keystroke. Each of these says so in the trace rather than
+  // returning quietly: a feature that does nothing and explains nothing cannot
+  // be told apart from one that is not running at all.
   const editor = vscode.window.activeTextEditor;
-  if (!editor || editor.document !== document) return;
-  if (editor.selections.length !== 1 || !editor.selection.isEmpty) return;
   const after = dot.translate(0, 1);
-  if (!editor.selection.active.isEqual(after)) return;
+  if (!editor || editor.document !== document) {
+    trace('dot arrow: the change is not in the active editor');
+    return;
+  }
+  if (editor.selections.length !== 1 || !editor.selection.isEmpty) {
+    trace(`dot arrow: ${editor.selections.length} selection(s), not one empty cursor`);
+    return;
+  }
+  if (!editor.selection.active.isEqual(after)) {
+    const at = editor.selection.active;
+    trace(`dot arrow: cursor at ${at.line}:${at.character}, expected ${after.line}:${after.character}`);
+    return;
+  }
 
   const left = leftOfDot(document.lineAt(dot.line).text.slice(0, dot.character));
   if (left !== 'name') {
@@ -156,8 +177,10 @@ async function onChange(event) {
     return;
   }
 
-  if (!saysPointer(answer, dot)) {
-    trace(`dot arrow: no arrow edit in ${since(started)} - ${sample(answer)}`);
+  const { arrowed, plain } = countEdits(answer, dot);
+  const counted = `${arrowed} arrow + ${plain} plain in ${since(started)}`;
+  if (arrowed === 0 || plain > 0) {
+    trace(`dot arrow: ${counted} - the dot reaches ${plain > 0 ? 'something' : 'nothing on offer'}`);
     return;
   }
 
@@ -167,7 +190,7 @@ async function onChange(event) {
   const edit = new vscode.WorkspaceEdit();
   edit.replace(document.uri, new vscode.Range(dot, after), '->');
   const applied = await vscode.workspace.applyEdit(edit);
-  trace(`dot arrow: ${applied ? 'converted' : 'edit refused'} in ${since(started)}`);
+  trace(`dot arrow: ${applied ? 'converted' : 'edit refused'} - ${counted}`);
 }
 
 /** @param {vscode.ExtensionContext} context */
@@ -177,8 +200,8 @@ function activate(context) {
 
 module.exports = {
   activate,
-  // Exported for the fixture notes and for anyone reading: the two decisions
-  // this feature makes on its own, apart from what the server says.
+  // Exported for the checks: the two decisions this feature makes on its own,
+  // apart from what the server answered.
   leftOfDot,
-  saysPointer,
+  countEdits,
 };

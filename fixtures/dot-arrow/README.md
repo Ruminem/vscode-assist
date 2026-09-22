@@ -38,8 +38,8 @@ language server answer worse, and then a failure here says nothing.
 | 1 | `pMgr;` | `AddressMgr*` | **`->`** |
 | 2 | `rMgr;` | `AddressMgr&` | stays `.` |
 | 3 | `vMgr;` | `AddressMgr` | stays `.` |
-| 4 | `owned;` | `Owned<AddressMgr>` | stays `.` - `.reset()` and `.get()` are the right thing to write |
-| 5 | `it;` | `Cursor<AddrInfo>` | stays `.` |
+| 4 | `owned;` | `Owned<AddressMgr>` | stays `.` - clangd answers 3 arrowed **and 2 plain** (`get`, `reset`), and a plain answer means the dot reaches something |
+| 5 | `it;` | `Cursor<AddrInfo>` | stays `.` - 2 arrowed and 1 plain (`base`) |
 | 6 | `pNode->next;` | `Node*` | **`->`** |
 | 7 | `pNode->mgr;` | `AddressMgr` | stays `.` |
 | 8 | `ppMgr;` | `AddressMgr**` | stays `.` - one arrow reaches a pointer, which has no members, so nothing is offered |
@@ -49,14 +49,32 @@ language server answer worse, and then a failure here says nothing.
 | 12 | `pMgr->First();` | `AddrInfo*` | stays `.` - **never asked**, the trace says `left of the dot is other`. A pointer, and still left alone: the type of a whole expression is a harder question than the type of a name, and it is not asked yet |
 | 13 | row 1 again, then `Ctrl+Z` once | - | the `.` is back, and the line is otherwise untouched |
 
+## Where the numbers came from
+
+Rows 4 and 5 stand in for `unique_ptr`, `shared_ptr` and `vector::iterator`,
+and they were checked against the real ones rather than assumed to match. The
+same positions, driven straight at clangd 18 over LSP with the standard
+headers included:
+
+| left of the dot | arrowed | plain |
+| --- | --- | --- |
+| `AddressMgr*` | 2 | 0 |
+| `std::unique_ptr<AddressMgr>` | 2 | 5 |
+| `std::shared_ptr<AddressMgr>` | 2 | 10 |
+| `std::vector<AddressMgr>::iterator` | 2 | 1 |
+| `std::vector<AddressMgr>` | 0 | 38 |
+
+That run is also why `Cursor` has a `base()` it does not obviously need. Its
+first version had nothing but operators, which gave 2 arrowed and 0 plain and
+made an iterator look exactly like a raw pointer - a stand-in that passed while
+the thing it stood for would have been mangled.
+
 ## What this fixture does not cover
 
-- **The real `unique_ptr`, `shared_ptr` and `vector::iterator`.** Rows 4 and 5
-  stand in for them, and they stand in on the one property that decides the
-  case - a class with `operator->`. No server is known to special-case the
-  standard types, but nobody has checked here. Try it once in a real project.
 - **cpptools on its own.** Everything above is clangd. cpptools is not known to
-  offer the fix at all, in which case every row simply stays a `.`, which is
+  answer this way at all, in which case every row simply stays a `.`, which is
   the safe way to be wrong.
 - **What it costs while typing.** Turn tracing on (`Assist: Start or stop
-  tracing`), run the rows, and read the milliseconds per dot.
+  tracing`), run the rows, and read the milliseconds per dot. The trace also
+  names the reason for every row that did not convert, including the one that
+  catches most first attempts: `dot arrow: off`.

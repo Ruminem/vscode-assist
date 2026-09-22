@@ -155,19 +155,35 @@ be one you turned on yourself. Turn it on for a workspace, or for one language
 with a `"[cpp]"` block.
 
 **Whether the thing on the left is a pointer is not decided here.** Right after
-the dot, the language server is asked what could be completed at that spot. A
-server that knows the expression is a pointer answers with an edit that reaches
-back over the dot and writes `->` in its place - clangd does this, and it is
-what the whole feature reads. Only the dot is then replaced; the member name
-that came with the completion is not inserted.
+the dot, the language server is asked what could be completed at that spot, and
+the dot is converted only when **nothing on that list can be reached with a
+dot** - when every answer came back with an edit that reaches over the dot and
+writes `->` in its place. That is true of a raw pointer by definition, and it
+is the whole test. Only the dot is then replaced; the member name that came
+with the completion is not inserted.
 
-Reading the server's answer rather than the name of a type is what makes this
-safe for free. A smart pointer and an iterator are exactly the cases a rule
-would get wrong: `unique_ptr::reset`, `shared_ptr::get` and `it->` all exist,
-and only the writer knows which was meant. Nothing offers to rewrite those
-dots, so nothing here has to hold a list of exceptions and keep it correct.
-It also means this extension still has no parser - the standing rule here - and
-that a server which does not offer the fix simply leaves your dot alone.
+Both halves of that sentence are load-bearing, and the first version of this
+feature only had the first. A class with `operator->` answers a dot with an
+arrow too - that is how `unique_ptr` offers you the pointee's members - but it
+answers with `get`, `reset` and `release` untouched alongside them, because
+those really are reached with a dot. Converting on the presence of an arrow
+alone rewrites `.reset()` into `->reset()`, which is the one accident this
+feature must not have. Requiring that nothing was left plain leaves smart
+pointers and iterators alone without a list of exceptions to keep correct.
+
+Measured against clangd 18, one dot at a time:
+
+| left of the dot | answers with an arrow | answers left plain | converted |
+| --- | --- | --- | --- |
+| `AddressMgr*` | 2 | 0 | yes |
+| `std::unique_ptr<AddressMgr>` | 2 | 5 | no |
+| `std::shared_ptr<AddressMgr>` | 2 | 10 | no |
+| `std::vector<AddressMgr>::iterator` | 2 | 1 | no |
+| `std::vector<AddressMgr>` | 0 | 38 | no |
+
+Asking the server rather than reasoning about types also means this extension
+still has no parser - the standing rule here - and that a server which does not
+answer this way simply leaves your dot alone.
 
 Three smaller decisions, in the order you would hit them:
 
