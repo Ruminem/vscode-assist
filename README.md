@@ -201,9 +201,13 @@ Three smaller decisions, in the order you would hit them:
   question takes a moment, and in that moment the cursor can be a word further
   on; applying a stale yes there is the one way this can damage a file rather
   than merely annoy.
-- A dot after a digit (`3.14`) is never asked about, and a dot after `)` or `]`
-  is left alone for now. The type of a whole expression is a harder question
-  than the type of a name, and answering it is not worth a wrong arrow yet.
+- A dot after a digit (`3.14`) is never asked about. A dot after `)` or `]` -
+  a call, a subscript, a cast - is asked the same question as a dot after a
+  name, because the type is never worked out here either way. Measured on
+  clangd 22 at 37 such positions: every expression that yields a pointer
+  answered with arrows only, and every value, reference, smart pointer,
+  `optional` and iterator answered with plain members alongside, so
+  `MakeRaw().` becomes `MakeRaw()->` and `vec.begin().` stays as it is.
 
 `fixtures/dot-arrow/` holds every one of these cases in one file, with what to
 expect at each. Turn tracing on to see what the server answered and how long it

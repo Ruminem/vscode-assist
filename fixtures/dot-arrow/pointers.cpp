@@ -20,6 +20,7 @@ struct AddressMgr {
   void UpdateAddress(const AddrInfo& info, bool force);
   int Count() const;
   AddrInfo* First();
+  AddrInfo Info();
 };
 
 // Owns a pointer and hands it out with `->`, the way unique_ptr does. A dot on
@@ -89,8 +90,11 @@ void cases(AddressMgr* pMgr, AddressMgr& rMgr, AddressMgr vMgr, Node* pNode) {
   // [11] inside a string literal
   const char* s = "pMgr";
 
-  // [12] after a call, where the left side is an expression rather than a name
+  // [12] after a call that returns a pointer
   pMgr->First();
+
+  // [14] after a call that returns a value
+  rMgr.Info();
 
   (void)s;
   (void)f;

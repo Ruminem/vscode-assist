@@ -46,8 +46,9 @@ language server answer worse, and then a failure here says nothing.
 | 9 | `float f = 3;` | a digit | stays `.` - **never asked**, the trace says `left of the dot is number` |
 | 10 | the `// [10]` comment itself | - | stays `.` - nothing is offered inside a comment |
 | 11 | inside `"pMgr"` | - | stays `.` |
-| 12 | `pMgr->First();` | `AddrInfo*` | stays `.` - **never asked**, the trace says `left of the dot is other`. A pointer, and still left alone: the type of a whole expression is a harder question than the type of a name, and it is not asked yet |
+| 12 | `pMgr->First();` | `AddrInfo*` | **`->`** - the left side is an expression, not a name, and it is asked the same question: the type is never worked out here either way |
 | 13 | row 1 again, then `Ctrl+Z` once | - | the `.` is back, and the line is otherwise untouched |
+| 14 | `rMgr.Info();` | `AddrInfo` | stays `.` - a call that returns a value answers with plain members only |
 
 ## Getting the numbers again
 

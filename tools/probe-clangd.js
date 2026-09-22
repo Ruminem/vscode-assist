@@ -30,6 +30,7 @@ const fs = require('fs');
 const path = require('path');
 const Module = require('module');
 const { spawn, spawnSync } = require('child_process');
+const { pathToFileURL } = require('url');
 
 const ROOT = path.join(__dirname, '..');
 const args = process.argv.slice(2);
@@ -86,7 +87,7 @@ const stub = {
 };
 const load = Module._load;
 Module._load = (request, parent, isMain) => (request === 'vscode' ? stub : load(request, parent, isMain));
-const { countEdits, leftOfDot } = require(path.join(ROOT, 'features', 'dot-arrow.js'));
+const { countEdits, leftOfDot, ASKED } = require(path.join(ROOT, 'features', 'dot-arrow.js'));
 
 /** An LSP item, with its ranges rebuilt out of the Positions countEdits expects. */
 function asVsCode(item) {
@@ -118,7 +119,10 @@ if (!fs.existsSync(path.join(dir, 'compile_commands.json'))) {
   );
 }
 
-const uri = `file://${file}`;
+// pathToFileURL, not `file://` glued to the path: on Windows that gives
+// `file://C:\...`, which clangd 22 drops without a word - the file is never
+// parsed and every run times out.
+const uri = pathToFileURL(file).href;
 const lines = fs.readFileSync(file, 'utf8').split('\n');
 
 // Each position is the line after its `// [n]` marker, with the dot typed just
@@ -207,7 +211,7 @@ function typed(spot) {
 (async () => {
   await send('initialize', {
     processId: process.pid,
-    rootUri: `file://${dir}`,
+    rootUri: pathToFileURL(dir).href,
     capabilities: {
       textDocument: {
         publishDiagnostics: { versionSupport: true },
@@ -257,7 +261,7 @@ function typed(spot) {
     const left = leftOfDot(lines[spot.line].slice(0, spot.character));
     const { arrowed, plain } = countEdits({ items }, dot);
     const verdict =
-      left !== 'name' ? `not ask (${left})` : arrowed > 0 && plain === 0 ? 'CONVERT' : 'leave the dot';
+      !ASKED.has(left) ? `not ask (${left})` : arrowed > 0 && plain === 0 ? 'CONVERT' : 'leave the dot';
 
     console.log(
       `  ${String(spot.n).padStart(2)}  ${spot.text.slice(0, 22).padEnd(22)}  ` +
