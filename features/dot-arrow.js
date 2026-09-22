@@ -102,10 +102,31 @@ function countEdits(answer, dot) {
   let plain = 0;
   for (const item of items) {
     const edits = [item.textEdit, ...(item.additionalTextEdits || [])];
-    if (edits.some((edit) => rewritesTheDot(edit, dot))) arrowed++;
+    if (edits.some((edit) => rewritesTheDot(edit, dot)) || insertTextOf(item).startsWith('->')) arrowed++;
     else plain++;
   }
   return { arrowed, plain };
+}
+
+/**
+ * The text an item would put in the document, whether it came as a string or
+ * as a snippet.
+ *
+ * This is the reading that works in practice. Asked through
+ * `vscode.executeCompletionItemProvider`, an item comes back with no
+ * `textEdit` and no `range` at all - the edit clangd sent is folded into
+ * `insertText` and the range is dropped on the way (measured in VS Code 1.138
+ * with clangd 22: a raw pointer's member is `{value: "->Count()"}` with
+ * `filterText` `._Count`, the same member on a value is `{value: "Count()"}`
+ * with `filterText` `Count`). An insertion that starts with `->` is an item
+ * that means to stand where the dot is: nothing would ever offer `.->Count`.
+ * @param {vscode.CompletionItem} item
+ */
+function insertTextOf(item) {
+  const text = item.insertText;
+  if (typeof text === 'string') return text;
+  if (text && typeof text.value === 'string') return text.value;
+  return '';
 }
 
 /** @param {vscode.TextDocumentChangeEvent} event */
@@ -125,8 +146,8 @@ async function onChange(event) {
     return;
   }
 
-  // The typing has to be the user's own, here, now: one cursor, sitting just
-  // past the dot. An edit made anywhere else in a document that happens to be
+  // The typing has to be the user's own, here, now: one cursor, sitting at
+  // the dot. An edit made anywhere else in a document that happens to be
   // open is not a keystroke. Each of these says so in the trace rather than
   // returning quietly: a feature that does nothing and explains nothing cannot
   // be told apart from one that is not running at all.
@@ -140,9 +161,15 @@ async function onChange(event) {
     trace(`dot arrow: ${editor.selections.length} selection(s), not one empty cursor`);
     return;
   }
-  if (!editor.selection.active.isEqual(after)) {
-    const at = editor.selection.active;
-    trace(`dot arrow: cursor at ${at.line}:${at.character}, expected ${after.line}:${after.character}`);
+  // The cursor the extension host knows is a step behind the document: the
+  // change arrives first and the move that followed it arrives after, so at
+  // this moment the cursor still reads as sitting on the dot (measured in
+  // VS Code 1.138: `cursor at 59:6` for a dot typed at 59:6). Either position
+  // says the typing happened here; anything else is an edit made somewhere
+  // the cursor is not.
+  const at = editor.selection.active;
+  if (!at.isEqual(dot) && !at.isEqual(after)) {
+    trace(`dot arrow: cursor at ${at.line}:${at.character}, expected ${dot.line}:${dot.character}`);
     return;
   }
 

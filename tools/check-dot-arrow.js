@@ -95,6 +95,13 @@ check('an empty list', count([]), { arrowed: 0, plain: 0 });
 
 // An edit that starts at the dot inserts in front of it and leaves it standing.
 check('an insertion at the dot', count([{ textEdit: { range: at, newText: '->x' } }]), { arrowed: 0, plain: 1 });
+// What actually comes back through vscode.executeCompletionItemProvider: no
+// edit and no range, only the text - as a snippet for clangd, as a string for
+// a server that does not use them (measured: VS Code 1.138, clangd 22).
+check('an arrow folded into a snippet', count([{ insertText: { value: '->Count()' }, filterText: '._Count' }]), { arrowed: 1, plain: 0 });
+check('an arrow folded into a string', count([{ insertText: '->next' }]), { arrowed: 1, plain: 0 });
+check('a member folded into a snippet', count([{ insertText: { value: 'Count()' }, filterText: 'Count' }]), { arrowed: 0, plain: 1 });
+check('a member folded into a string', count([{ insertText: 'next' }]), { arrowed: 0, plain: 1 });
 // A server that says nothing cannot be read, and an unreadable item has to
 // count against converting rather than be skipped.
 check('an item with no edit', count([{ label: 'x' }, arrow(1)]), { arrowed: 1, plain: 1 });

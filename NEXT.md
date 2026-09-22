@@ -132,7 +132,7 @@ namespace·클래스만 남기고, 이름 줄은 항상 공급자 답 아래로 
 `document.version` 으로 버리고, `WorkspaceEdit` 로 적용해 `Ctrl+Z` 한 번에 점이 돌아온다.
 숫자 뒤(`3.14`)와 `)`·`]` 뒤는 아예 묻지 않는다. **이 저장소에서 키도 명령도 없는 첫 기능**이라
 `extension.js` 가 `activate(context)` 를 받게 두 줄 늘었다.
-**VS Code 안에서 끝까지 도는 것은 아직 아무도 못 봤다.**
+**VS Code 안에서 끝까지 도는 것은 9/22 밤에 처음 봤다 — 맨 아래 블록.**
 
 **9/22 — 첫 판의 판정이 틀렸고, 컨테이너에서 clangd 로 직접 재서 잡았다.** `clangd-18` 을 깔고
 LSP 로 픽스처 자리를 하나씩 물어 본 결과다 — VS Code 없이. **하네스는 저장소에 없다**(아래
@@ -187,11 +187,11 @@ n(v0.1.0 버그), 번역문 안의 `$(...)` 아이콘도 본다. 지금 저장�
 **`Alt+G` 가 5초 걸리던 관측은 그 상태의 것일 가능성이 크다.** 사용자 체감으로는 지금 안 느리다.
 
 **다음 할 것**
-- **`.`→`->` 를 VS Code 에서 처음 끝까지 돌려볼 것.** 9/22에 회사에서 눌러 봤을 때 아무 일도
-  안 일어났는데, **설정을 켰는지가 확인되지 않았다**(기본 꺼짐). 그때 본 "목록에서 고르면
-  화살표가 된다"는 clangd 가 원래 하는 일이고 이 확장과 무관하다. 이제 멈추는 자리마다 추적
-  줄이 남으므로 다음 시도는 어디서 멈췄는지 말해 준다 — `dot arrow: off` 면 설정,
-  `cursor at a:b, expected c:d` 면 커서 검사, `N arrow + M plain` 이면 서버 답이다.
+- **회사 PC 에서 `.`→`->` 를 다시 눌러볼 것.** 집에서는 9/22 밤에 끝까지 돌았다(맨 아래 블록).
+  회사에서 아무 일도 안 났던 것은 설정이 꺼져 있었을 가능성에 더해 **코드 두 군데가 막고 있었다** —
+  그 상태로는 켜도 안 됐다. 다음 시도는 추적 줄이 어디서 멈췄는지 말해 준다 — `dot arrow: off` 면 설정,
+  `cursor at a:b, expected c:d` 면 커서 검사, `N arrow + M plain` 이면 서버 답이다. **13번(Ctrl+Z)은 아직**
+  **안 봤다** — 드라이버에 `^z` 한 줄 보태면 된다.
 - **clangd 가 그 편집을 초기 응답에 담는 것은 확인됨**(clangd 18, `editsNearCursor: true`).
   resolve 는 필요 없었다. **cpptools 단독은 아직 안 쟀다** — 회사 설정은 clangd 가 IntelliSense 를
   맡으므로 급하지 않다.
@@ -261,3 +261,17 @@ Visual Assist는 **실제로 VS Code 마켓에 올라와 있어서**, 공식 포
 실패했다. 그 사이 다른 게시자들은 정상 게시 중이었다. 마켓의 권한 확인 경로가 간헐적으로 멈추는
 것으로 보고, neon-glow가 vsce 3에서 실패한 것도 같은 현상일 가능성이 크다. 우회로는 CLAUDE.md에
 적었다 — 게시자 페이지에서 릴리스 VSIX 직접 올리기.
+
+**9/22 밤 — `.`→`->` 를 VS Code 안에서 처음 끝까지 돌렸다. 두 군데가 막혀 있었다.**
+① **커서 검사.** `onDidChangeTextDocument` 가 올 때 확장 호스트의 `editor.selection` 은 아직
+점을 치기 전 자리다(추적: `cursor at 59:6, expected 59:7`). 점 자리와 점 바로 뒤 둘 다 받게 했다.
+② **판정 근거.** `vscode.executeCompletionItemProvider` 로 받은 항목에는 `textEdit` 도 `range` 도
+없다 — 편집이 `insertText` 로 접히고 범위는 사라진다. 포인터 멤버는 `{value: "->Count()"}`·
+`filterText "._Count"`, 값 멤버는 `{value: "Count()"}`·`"Count"` (VS Code 1.138, clangd 22).
+그래서 `insertText` 가 `->` 로 시작하면 화살표 항목으로 센다. `check-dot-arrow` 에 그 모양 4건을
+넣었고 규칙을 빼면 2건이 실패하는 것을 봤다. 실기: 1번 `pMgr->;` · 4번 `owned.;`(3+2) ·
+6번 `pNode->next->;`, 점 하나에 45ms. **13번(Ctrl+Z)은 아직 안 봤다.**
+**F5 는 이 PC 에서 못 쓴다** — VS Code 1.136+ 의 js-debug 자동 연결 버그(microsoft/vscode#336233)로
+확장 호스트가 코드 134 로 죽는다. `Ctrl+F5` 나 `--extensionDevelopmentPath` 직접 실행은 된다.
+실기는 `~/wt/dot-arrow-ws/drive.ps1`(저장소 밖) 이 창을 띄우고 `.` 을 보내 추적을 읽는 식으로 했다.
+`fixtures/dot-arrow/.vscode/settings.json`(설정 켬)은 그때 만든 것으로 커밋 안 됐다.
