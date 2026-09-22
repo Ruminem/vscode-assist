@@ -20,6 +20,7 @@
   "activationEvents": ["onStartupFinished"],
   "scripts": {
     "check-keys": "node tools/check-keys.js",
+    "check-nls": "node tools/check-nls.js",
     "icon": "node tools/make-icon.js",
     "release": "node tools/release.js"
   },

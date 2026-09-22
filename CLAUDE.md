@@ -24,6 +24,7 @@ cpptools, rust-analyzer, tsserver) 몫임. 이 성질도 깨지 않음 — 깨�
 | `features/trace.js` | 디버깅용 추적. 기본 꺼짐 — `assist.toggleTrace`로 켜면 키 한 번당 한 줄씩 단계별 시간을 **임시 파일**(`%TEMP%/assist-trace-<pid>-*.txt`)에 남기고 상태 표시줄에 표시(누르면 꺼짐). 끌 때 저장 위치를 묻고 임시 파일은 항상 지움. 창이 닫히면 `deactivate`가 지우고, 강제 종료로 남은 건 다음 시작 때 pid가 죽은 파일만 지움. 출력 채널은 안 씀 — VS Code가 세션 로그에 옮겨 적어서. 최근 200줄은 메모용으로 메모리에 둠. 기록 문장은 영어 그대로 |
 | `features/note.js` | `assist.saveNote`. 사용자 한 줄 + 언어 서버 버전·설정 + 커서 위치에서 단계별로 하나씩 잰 시간(`round-trip.js`의 `measure`) + 최근 기록을 저장 안 된 마크다운으로 엶. 회사 PC에서 겪은 걸 집에서 고칠 때 넘기는 용도. 키 없음 |
 | `tools/check-keys.js` | 키 충돌 검사기. 런타임 아님 — 바인딩을 **추가하기 전에** 돌림 |
+| `tools/check-nls.js` | 번역 누락 검사기. 런타임 아님 — `npm run check-nls`, 내면서 돌림. `package.json`의 `%키%`와 두 nls 파일을 양방향으로 맞춰 보고, `vscode.l10n.t()` 원문과 `l10n/bundle.l10n.ko.json` 키를 양방향으로 맞춰 봄. `{0}` 자리 개수 어긋남, 줄바꿈 대신 들어간 역슬래시와 n(v0.1.0 버그), 번역문 안의 `$(...)` 아이콘도 잡음. **번역이 빠져도 영어로 나올 뿐 실패하지 않으므로 이게 유일한 그물임.** `l10n.t()`를 변수로 부르면 잡을 수 없으니 그것도 문제로 보고함 |
 | `tools/release.js` | 태그를 `package.json` 버전에서 만듦. 인자 없이 돌리면 점검만 하고, `--push`면 태그를 만들어 밈. neon-glow에서 가져옴 |
 | `tools/make-icon.js` | `icon.png` 생성기. 의존성 없음. neon-glow 렌더러를 모양 하나로 줄인 것 |
 | `.github/workflows/` | `v*` 태그에서 `release.yml`은 GitHub 릴리스를, `marketplace.yml`은 마켓 게시를 함. 마켓 쪽은 `VSCE_PAT` secret이 있어야 함 |
@@ -116,6 +117,9 @@ README에 붙여 넣을 블록으로만 실을 것.
   2. 두 README의 **표** 한 줄씩
   3. 두 README의 **산문** — 그게 무엇이고 왜 그 모양인지
   4. 이 파일 위쪽의 명령·설정 목록
+  - **고치고 나서 `npm run check-nls`를 돌릴 것.** 위 1번의 두 nls 파일과 `l10n` 번역이
+    실제로 짝이 맞는지 보는 유일한 그물임 — 번역이 빠지면 영어가 나올 뿐 아무것도 안 깨져서
+    한국어로 띄워 한 줄씩 읽기 전에는 모름. 내기 전에도 돌림.
   - **표만 채우고 끝내지 않음.** 표 한 줄은 그게 무엇을 하는지만 말하고, 왜 있는지도 왜
     그 모양인지도 말하지 않음. 소스를 봐야만 알 수 있는 결정(왜 `Shift+Alt+O`는 안
     붙였는지 같은 것)은 산문에 남김.

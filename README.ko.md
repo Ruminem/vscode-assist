@@ -235,7 +235,20 @@ import가 정리되고, C++ 파일에서는 Quick Open이 열림. `check-keys`�
 
 코드가 필요한 기능은 `features/`에 `{ commands: { id: handler } }`를 내보내는 파일
 하나 + `extension.js` 맨 위 목록에 한 줄 + `contributes` 항목. 키만 필요한 기능은
-`contributes` 항목 하나로 끝남.
+`contributes` 항목 하나로 끝남. 키 입력이 아닌 것에 반응하는 기능은 대신
+`activate(context)`를 내보내고 거기서 이벤트를 걺.
+
+화면에 나오는 것은 전부 영어와 한국어로 두 벌 있고, 사는 곳이 서로 다름. 명령 제목과
+설정 설명은 `package.nls.json`·`package.nls.ko.json`에, 코드가 말하는 것은
+`l10n/bundle.l10n.ko.json`에 있고 거기서는 키가 영어 문장 자체임.
+
+```
+npm run check-nls
+```
+
+두 벌이 여전히 짝이 맞는지 양방향으로 보고, `{0}` 자리가 번역에서 살아남았는지도 봄.
+습관으로 둘 값어치가 있음 — **번역이 빠져도 실패하지 않기 때문임.** VS Code가 영어를
+대신 보여주고 확장은 그대로 돌아서, 누가 한국어로 읽어 보기 전까지는 아무도 모름.
 
 ## 라이선스
 

@@ -292,7 +292,22 @@ VS Code window opens with the extension loaded.
 A feature that needs code is a file in `features/` exporting
 `{ commands: { id: handler } }`, a line in the list at the top of
 `extension.js`, and a `contributes` entry. A feature that only needs a key is
-the `contributes` entry alone.
+the `contributes` entry alone. A feature that answers something other than a
+key press exports `activate(context)` instead and puts its listener there.
+
+Everything on screen is written twice - English and Korean - in two different
+places: command titles and setting descriptions in `package.nls.json` and
+`package.nls.ko.json`, everything the code says in `l10n/bundle.l10n.ko.json`,
+where the key is the English sentence itself.
+
+```
+npm run check-nls
+```
+
+checks that the two halves still match, in both directions, and that the `{0}`
+slots survived the translation. It is worth a habit, because a missing
+translation does not fail: VS Code shows the English and the extension keeps
+working, so nothing tells you until someone reads the Korean.
 
 ## License
 
