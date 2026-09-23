@@ -243,6 +243,8 @@ hint of its own for this; its answer is empty.
 
 - **A value the initializer already spells out gets no hint.** `C = 10` would
   only say 10 twice. `Read = 1 << 0` and `Ex = 'x'` are what the hint is for.
+  A hex initializer gets the decimal alone: `Mask = 0x9999` ends with
+  `= 39321`, since the hex is already on the line.
 - **A negative value is shown without hex.** The hover does not say how wide
   the underlying type is, and `0xFFFFFFFF` is only right for one width.
 - **An enumerator whose value depends on a template argument gets nothing**,

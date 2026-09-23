@@ -27,29 +27,33 @@ function valueOf(text) {
 }
 
 /**
- * `= 2 (0x2)`. A negative value has no hex form without the width of its
- * underlying type, which the hover does not say, so it stands alone.
+ * `= 2 (0x2)`, or `= 2` alone when the initializer is already written in hex.
+ * A negative value has no hex form without the width of its underlying type,
+ * which the hover does not say, so it stands alone too.
  * @param {bigint} value
+ * @param {boolean} [decimalOnly]
  */
-function label(value) {
-  return value < 0n ? `= ${value}` : `= ${value} (0x${value.toString(16).toUpperCase()})`;
+function label(value, decimalOnly) {
+  return value < 0n || decimalOnly ? `= ${value}` : `= ${value} (0x${value.toString(16).toUpperCase()})`;
 }
 
 /**
- * Whether the enumerator's own text already reads as its value: `C = 10`,
- * `Huge = 0xFFFFFFFFFFFFFFFFull`, `M = -1`. A hint there says the number twice.
- * Only a lone integer literal counts - `1 << 0` and `'x'` are what the hint is
- * for. This reads the letters of one declaration; it is not a parse.
+ * The base the enumerator's own text spells its value in - 10 for `C = 10` or
+ * `M = -1`, 16 for `Huge = 0xFFFFFFFFFFFFFFFFull`, 8 or 2 - or 0 when the text
+ * is not a lone integer literal equal to the value. `1 << 0` and `'x'` are 0:
+ * they are what the hint is for. This reads the letters of one declaration; it
+ * is not a parse.
  * @param {string} text the enumerator as the symbol's range covers it
  * @param {bigint} value
  */
-function restates(text, value) {
+function literalBase(text, value) {
   const match = /^[^=]*=\s*(-?)\s*(0[xX][\da-fA-F']+|0[bB][01']+|\d[\d']*)[uUlLzZ]*\s*$/.exec(text);
-  if (!match) return false;
+  if (!match) return 0;
   let digits = match[2].replace(/'/g, '');
-  if (/^0\d/.test(digits)) digits = '0o' + digits.slice(1);
+  const base = /^0[xX]/.test(digits) ? 16 : /^0[bB]/.test(digits) ? 2 : /^0\d/.test(digits) ? 8 : 10;
+  if (base === 8) digits = '0o' + digits.slice(1);
   const literal = BigInt(digits);
-  return (match[1] ? -literal : literal) === value;
+  return (match[1] ? -literal : literal) === value ? base : 0;
 }
 
 // Hover answers for one version of one document, by enumerator position.
@@ -119,8 +123,12 @@ async function provideInlayHints(document, range, token) {
       value = await hoverValue(document, at);
       if (value !== null) known.values.set(key, value);
     }
-    if (value === null || restates(document.getText(where), value)) continue;
-    const hint = new vscode.InlayHint(where.end, label(value));
+    if (value === null) continue;
+    // Decimal already says it. Hex gets the decimal it hides; 0b and 0 octal
+    // are no easier to read than hex, so they keep both.
+    const base = literalBase(document.getText(where), value);
+    if (base === 10) continue;
+    const hint = new vscode.InlayHint(where.end, label(value, base === 16));
     hint.paddingLeft = true;
     found.push(hint);
   }
@@ -141,5 +149,5 @@ module.exports = {
   // Exported for the checks: what this feature decides from text alone.
   valueOf,
   label,
-  restates,
+  literalBase,
 };

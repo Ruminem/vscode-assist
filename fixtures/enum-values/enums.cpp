@@ -25,7 +25,7 @@ enum Signed {
 };
 
 enum Big : unsigned long long {
-  Huge = 0xFFFFFFFFFFFFFFFFull,   // expect none
+  Huge = 0xFFFFFFFFFFFFFFFFull,   // expect = 18446744073709551615
   Half = Huge >> 1,               // expect = 9223372036854775807 (0x7FFFFFFFFFFFFFFF)
 };
 

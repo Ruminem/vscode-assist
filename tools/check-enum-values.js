@@ -20,7 +20,7 @@ const load = Module._load;
 Module._load = function (request, ...rest) {
   return request === 'vscode' ? {} : load.call(this, request, ...rest);
 };
-const { valueOf, label, restates } = require('../features/enum-values');
+const { valueOf, label, literalBase } =require('../features/enum-values');
 
 let failed = 0;
 function check(name, actual, expected) {
@@ -47,17 +47,21 @@ check('label hex is upper case', label(255n), '= 255 (0xFF)');
 check('label negative has no hex', label(-1n), '= -1');
 check('label uint64 max', label(18446744073709551615n), '= 18446744073709551615 (0xFFFFFFFFFFFFFFFF)');
 
-check('implicit value is not restated', restates('A', 0n), false);
-check('decimal literal restates', restates('C = 10', 10n), true);
-check('hex literal with suffix restates', restates('Huge = 0xFFFFFFFFFFFFFFFFull', 18446744073709551615n), true);
-check('negative literal restates', restates('M = -1', -1n), true);
-check('octal literal restates', restates('O = 017', 15n), true);
-check('binary with separators restates', restates("B = 0b1000'0000", 128n), true);
-check('shift is not restated', restates('Read = 1 << 0', 1n), false);
-check('char literal is not restated', restates("Ch = 'x'", 120n), false);
-check('expression ending in a literal is not restated', restates('Q = k + 1', 1n), false);
-check('comparison ending in a literal is not restated', restates('X = Y == 1', 1n), false);
-check('literal that disagrees is not restated', restates('C = 10', 11n), false);
+check('label decimal only for a hex initializer', label(39321n, true), '= 39321');
+
+check('implicit value has no literal', literalBase('A', 0n), 0);
+check('decimal literal', literalBase('C = 10', 10n), 10);
+check('hex literal with suffix', literalBase('Huge = 0xFFFFFFFFFFFFFFFFull', 18446744073709551615n), 16);
+check('upper case hex literal', literalBase('T = 0X9999', 39321n), 16);
+check('negative literal', literalBase('M = -1', -1n), 10);
+check('octal literal', literalBase('O = 017', 15n), 8);
+check('binary with separators', literalBase("B = 0b1000'0000", 128n), 2);
+check('zero is decimal, not octal', literalBase('None = 0', 0n), 10);
+check('shift is not a literal', literalBase('Read = 1 << 0', 1n), 0);
+check('char literal is not an integer literal', literalBase("Ch = 'x'", 120n), 0);
+check('expression ending in a literal', literalBase('Q = k + 1', 1n), 0);
+check('comparison ending in a literal', literalBase('X = Y == 1', 1n), 0);
+check('literal that disagrees', literalBase('C = 10', 11n), 0);
 
 if (failed) {
   console.log(`\n${failed} failed`);
