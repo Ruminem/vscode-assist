@@ -43,3 +43,20 @@ double scale(double value, double factor);
 namespace ui {
 double scale(double value, double factor);
 }
+
+// Not a round trip position. Here so assist.enumValues.enabled can be seen in
+// the same window: each enumerator should end with its value, except where the
+// initializer already says it. Kept below everything so the lines above, which
+// README.md points at, do not move. fixtures/enum-values/ has every shape.
+enum class Corner { TopLeft, TopRight, BottomRight = 4, BottomLeft };
+
+enum Layer : unsigned {
+  Fill = 1u << 0,
+  Stroke = 1u << 1,
+  Shadow = 1u << 4,
+  Everything = Fill | Stroke | Shadow,
+};
+
+struct Palette {
+  enum Tone : char { Light = 'l', Dark = 'd', Unset = -1 };
+};
