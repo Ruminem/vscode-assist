@@ -1,5 +1,19 @@
 # Changelog
 
+## 0.5.6 — 2026-09-24
+
+- `Alt+G` no longer claims clangd is still indexing when the compilation database lives where `--compile-commands-dir` or a `.clangd` file's `CompilationDatabase` points.
+- `Alt+G` menu rows show the line of code first, then the file and line.
+- When `Alt+G` falls back to a text guess, it searches from the current file's folder outwards, and equally good guesses are listed nearest first.
+- `Alt+E` rows show the file name first and its folder after it, so a deep path cuts off the folder rather than the name.
+
+**한국어**
+
+- 컴파일 DB 가 `--compile-commands-dir` 이나 `.clangd` 의 `CompilationDatabase` 가 가리키는 자리에 있어도 `Alt+G` 가 clangd 인덱싱 중이라고 잘못 알리지 않음.
+- `Alt+G` 메뉴 항목이 코드 한 줄을 먼저, 파일과 줄을 그 뒤에 보여 줌.
+- `Alt+G` 가 텍스트 추측으로 넘어가면 지금 파일의 폴더부터 바깥으로 넓혀 찾고, 비슷한 정도가 같으면 가까운 것이 먼저 나옴.
+- `Alt+E` 항목이 파일 이름을 먼저, 폴더를 그 뒤에 보여 줌. 경로가 깊어도 이름이 아니라 폴더 쪽이 잘림.
+
 ## 0.5.5 — 2026-09-23
 
 - Each row of the `Alt+G` menu now ends with the line of code it jumps to, so overrides can be told apart without opening them.
