@@ -1,5 +1,13 @@
 # Changelog
 
+## 0.5.8 — 2026-09-24
+
+- An enumerator whose initializer is a hex literal (`Mask = 0x9999`) now shows its decimal value (`= 39321`) instead of no hint.
+
+**한국어**
+
+- 초기값이 16진수 리터럴인 열거형 멤버(`Mask = 0x9999`)에도 힌트가 없던 대신 10진수 값(`= 39321`)이 붙음.
+
 ## 0.5.7 — 2026-09-24
 
 - In C, C++ and CUDA files, each enumerator shows its value at the end of the line, in decimal and hex (`= 2 (0x2)`). The value comes from the language server's hover (clangd or the Microsoft C/C++ extension), so expressions, `constexpr` and character literals show what the compiler computes.
