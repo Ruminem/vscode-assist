@@ -57,12 +57,13 @@ function best(queries, path) {
 
 /** @param {{uri: vscode.Uri, path: string}} file @param {number[]} positions */
 function row(file, positions) {
+  // Name first and folder after, as VS Code's own file picker lays it out: a row
+  // too narrow for a deep path clips the folder, never the name. The matched
+  // letters are split between the two so both still show what was hit.
   const cut = file.path.lastIndexOf('/');
   return {
-    label: `$(file) ${decorate(file.path, positions)}`,
-    // The folder again, undecorated and dimmed, so a path too long for the row
-    // still shows where it lives when the label is clipped.
-    description: cut > 0 ? file.path.slice(0, cut) : undefined,
+    label: `$(file) ${decorate(file.path.slice(cut + 1), positions.filter((i) => i > cut).map((i) => i - cut - 1))}`,
+    description: cut > 0 ? decorate(file.path.slice(0, cut), positions.filter((i) => i < cut)) : undefined,
     uri: file.uri,
     // The picker filters by label on its own, with a matcher that is not this
     // one - and the label's matched letters are bold look-alikes it cannot

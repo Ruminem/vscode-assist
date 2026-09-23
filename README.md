@@ -220,7 +220,9 @@ took per dot.
 
 `Alt+E` opens a file search of this extension's own. Type any letters of the
 path in order - `fda` reaches `features/dot-arrow.js` - and the letters that
-matched are drawn in bold.
+matched are drawn in bold. Each row puts the file name first and its folder
+after, as VS Code's own picker does, so a deep path clips the folder and never
+the name.
 
 **It also finds files through a Korean keyboard.** Code is written in English
 and file names follow it, but an input method left switched on does not know
