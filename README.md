@@ -58,7 +58,10 @@ not an index - nothing is kept once the menu closes. A guess never jumps on its
 own; up to five open the menu, each with a similarity percentage built from what
 a line of text can show (the header/source pair of what the server did find, a
 `geo::` qualifier against `namespace geo`, the argument count, a body rather
-than a `;`, the same folder), and the last row says how far the index has got,
+than a `;`, the same folder). The search starts from the file you are reading
+and widens one folder level at a time, and guesses that score the same are
+listed nearest first - this file, then its folder, then further out. The last
+row says how far the index has got,
 counted from the files clangd leaves in `.cache/clangd/index`. The search only
 runs while that index is incomplete and the server left fewer than two places to
 go, skips names shorter than three characters and keywords, and stops after 1.5

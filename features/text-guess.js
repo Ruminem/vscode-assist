@@ -195,6 +195,41 @@ function ripgrep() {
 }
 
 let running = null;
+let searches = 0;
+
+/**
+ * The folders to search, nearest first: the file's own, then each parent up to
+ * the workspace folder. Each is searched without the one before it, so the
+ * candidate limit fills from near the file instead of from wherever ripgrep's
+ * parallel walk happens to go first - measured on spdlog, the first 50 of a
+ * word with more changed from run to run.
+ * @param {string} file @param {string} top
+ */
+function rings(file, top) {
+  const dirs = [];
+  for (let dir = path.dirname(file); ; dir = path.dirname(dir)) {
+    dirs.push(dir);
+    if (dir === top || path.dirname(dir) === dir) return dirs;
+  }
+}
+
+/**
+ * Folder hops from the file being read to a guess: -1 for the file itself, 0
+ * for its folder, then one per folder up or down between the two. On spdlog and
+ * googletest, 46 and 43 of 60 called names had a candidate in a file calling
+ * them, and a folder was the wrong unit - the definition sat under include/
+ * while the call was under src/ or tests/.
+ * @param {string} from @param {string} to
+ */
+function distance(from, to) {
+  if (from === to) return -1;
+  return path.relative(path.dirname(from), path.dirname(to)).split(/[\\/]/).filter(Boolean).length;
+}
+
+/** A folder name as a literal in a ripgrep glob. */
+function literal(name) {
+  return name.replace(/[*?[\]{}!\\]/g, (c) => `[${c}]`);
+}
 
 /**
  * Lines that look like a definition or declaration of `word`: a type keyword
@@ -204,7 +239,7 @@ let running = null;
  * @param {vscode.TextDocument} document @param {vscode.Position} pos
  * @param {vscode.Location[]} related where the language server did answer
  * @returns {Promise<{kind: string, label: string, similarity: number, loc: vscode.Location}[]>}
- *   most similar first, all of them - the caller drops what it already has
+ *   most similar first and nearest among equals, all of them - the caller drops what it already has
  *   before cutting the list
  */
 function textGuesses(document, pos, related) {
@@ -218,19 +253,76 @@ function textGuesses(document, pos, related) {
   // One search at a time: a second press while the first is still out means
   // the first answer is no longer wanted.
   if (running) running.kill();
+  const search = ++searches;
   const pattern = `\\b(class|struct|union|enum|namespace)\\s+${word}\\b|^\\s*[A-Za-z_][\\w:<>,*&\\s]*[\\s*&:]${word}\\s*\\(`;
   const args = ['--no-heading', '--line-number', '--max-count', String(PER_FILE), '--max-filesize', MAX_FILESIZE];
   for (const glob of GLOBS) args.push('-g', glob);
-  args.push('-e', pattern, '--', folder.uri.fsPath);
+  args.push('-e', pattern);
 
   const guesses = [];
-  const found = new Promise((resolve) => {
+  const deadline = Date.now() + SEARCH_MS;
+  // ponytail: one ripgrep per folder level, about 40 ms each on this machine.
+  // A deep file in a huge tree pays that per level; merge levels if it shows.
+  const found = rings(document.uri.fsPath, folder.uri.fsPath).reduce(
+    (before, dir, i, dirs) =>
+      before.then(() => {
+        if (search !== searches || guesses.length >= MAX_CANDIDATES || Date.now() >= deadline) return;
+        // ripgrep matches globs against paths from its working directory.
+        const skip = i > 0 ? ['-g', `!${literal(path.basename(dirs[i - 1]))}/**`] : [];
+        return searchIn(rg, [...args, ...skip, '--', dir], dir, word, guesses, deadline);
+      }),
+    Promise.resolve(),
+  );
+
+  return found.then(async () => {
+    const context = callSite(document.lineAt(pos.line).text, range ? range.start.character : 0, word);
+    // The namespace signal needs the text above each match. Read each file once,
+    // off the extension host's thread, and only when there is a qualifier to check.
+    const texts = new Map();
+    if (context.qualifier) {
+      const files = [...new Set(guesses.map((guess) => guess.loc.uri.fsPath))];
+      await Promise.all(
+        files.map((file) =>
+          fs.promises.readFile(file, 'utf8').then(
+            (text) => texts.set(file, text.split(/\r?\n/)),
+            () => texts.set(file, []),
+          ),
+        ),
+      );
+    }
+    for (const guess of guesses) {
+      guess.similarity = similarity(guess, context, document, related, texts);
+      guess.distance = distance(document.uri.fsPath, guess.loc.uri.fsPath);
+    }
+    return guesses.sort(byLikeness);
+  });
+}
+
+/**
+ * Most similar first; among equals, nearest to the file being read. Nearness
+ * only breaks ties: put first, a declaration in this file would beat the
+ * definition elsewhere that Alt+G is usually after. Equal on both keeps the
+ * order found, which is already near-first.
+ * @param {{similarity: number, distance: number}} a @param {{similarity: number, distance: number}} b
+ */
+function byLikeness(a, b) {
+  return b.similarity - a.similarity || a.distance - b.distance;
+}
+
+/**
+ * One ripgrep over one folder, adding to `guesses` until they are enough or
+ * the deadline passes.
+ * @param {string} rg @param {string[]} args @param {string} cwd @param {string} word
+ * @param {object[]} guesses @param {number} deadline
+ */
+function searchIn(rg, args, cwd, word, guesses, deadline) {
+  return new Promise((resolve) => {
     // Read as it arrives and stop ripgrep the moment there are enough
     // candidates - waiting for it to exit would spend the whole time limit
     // walking the rest of a large tree for matches nobody will see.
-    const child = spawn(rg, args, { stdio: ['ignore', 'pipe', 'ignore'] });
+    const child = spawn(rg, args, { cwd, stdio: ['ignore', 'pipe', 'ignore'] });
     running = child;
-    const timer = setTimeout(() => child.kill(), SEARCH_MS);
+    const timer = setTimeout(() => child.kill(), Math.max(0, deadline - Date.now()));
     let pending = '';
     child.stdout.setEncoding('utf8');
     child.stdout.on('data', (chunk) => {
@@ -251,26 +343,6 @@ function textGuesses(document, pos, related) {
       if (running === child) running = null;
       resolve();
     });
-  });
-
-  return found.then(async () => {
-    const context = callSite(document.lineAt(pos.line).text, range ? range.start.character : 0, word);
-    // The namespace signal needs the text above each match. Read each file once,
-    // off the extension host's thread, and only when there is a qualifier to check.
-    const texts = new Map();
-    if (context.qualifier) {
-      const files = [...new Set(guesses.map((guess) => guess.loc.uri.fsPath))];
-      await Promise.all(
-        files.map((file) =>
-          fs.promises.readFile(file, 'utf8').then(
-            (text) => texts.set(file, text.split(/\r?\n/)),
-            () => texts.set(file, []),
-          ),
-        ),
-      );
-    }
-    for (const guess of guesses) guess.similarity = similarity(guess, context, document, related, texts);
-    return guesses.sort((a, b) => b.similarity - a.similarity);
   });
 }
 
@@ -343,8 +415,8 @@ function enclosing(lines, line) {
  * How much a text match looks like the symbol asked about, as a whole percent.
  * Only signals a line of text can carry, each weighted, and a signal the
  * cursor's line gives nothing to compare with (no qualifier written, not a
- * call) is left out of the total rather than counted as a miss. Ties keep
- * ripgrep's order.
+ * call) is left out of the total rather than counted as a miss. Ties are
+ * broken by nearness, in byLikeness.
  * @param {{text: string, rest: string, loc: vscode.Location}} guess
  * @param {{qualifier: string | null, arity: number | null}} context
  * @param {vscode.TextDocument} document @param {vscode.Location[]} related
@@ -366,4 +438,4 @@ function similarity(guess, context, document, related, texts) {
   return Math.round((earned / possible) * 100);
 }
 
-module.exports = { indexProgress, isComplete, describeProgress, textGuesses, locateDatabase };
+module.exports = { indexProgress, isComplete, describeProgress, textGuesses, locateDatabase, rings, distance, byLikeness };

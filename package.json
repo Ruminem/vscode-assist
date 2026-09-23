@@ -23,7 +23,7 @@
     "check-nls": "node tools/check-nls.js",
     "check-dot-arrow": "node tools/check-dot-arrow.js",
     "check-fuzzy": "node tools/check-fuzzy.js",
-    "check-find-database": "node tools/check-find-database.js",
+    "check-text-guess": "node tools/check-text-guess.js",
     "probe-clangd": "node tools/probe-clangd.js",
     "icon": "node tools/make-icon.js",
     "release": "node tools/release.js"
