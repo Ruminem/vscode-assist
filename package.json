@@ -2,7 +2,7 @@
   "name": "vscode-assist",
   "displayName": "Assist — Navigation Keys",
   "description": "Navigation shortcuts VS Code does not ship, bound to keys VS Code does not use.",
-  "version": "0.5.6",
+  "version": "0.5.7",
   "publisher": "Ruminem",
   "license": "MIT",
   "icon": "icon.png",

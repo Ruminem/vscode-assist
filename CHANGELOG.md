@@ -1,5 +1,15 @@
 # Changelog
 
+## 0.5.7 — 2026-09-24
+
+- In C, C++ and CUDA files, each enumerator shows its value at the end of the line, in decimal and hex (`= 2 (0x2)`). The value comes from the language server's hover (clangd or the Microsoft C/C++ extension), so expressions, `constexpr` and character literals show what the compiler computes.
+- No hint where the initializer already is that number (`C = 10`), and negative values show without hex. Turn it off with `assist.enumValues.enabled`.
+
+**한국어**
+
+- C·C++·CUDA 파일에서 열거형 멤버마다 줄 끝에 그 값을 10진수와 16진수로 보여 줌(`= 2 (0x2)`). 값은 언어 서버(clangd 나 Microsoft C/C++ 확장)의 호버에서 가져오므로 식·`constexpr`·문자 리터럴도 컴파일러가 계산한 값이 나옴.
+- 초기값이 이미 그 숫자인 멤버(`C = 10`)에는 달지 않고, 음수는 16진수 없이 보여 줌. `assist.enumValues.enabled` 로 끌 수 있음.
+
 ## 0.5.6 — 2026-09-24
 
 - `Alt+G` no longer claims clangd is still indexing when the compilation database lives where `--compile-commands-dir` or a `.clangd` file's `CompilationDatabase` points.
