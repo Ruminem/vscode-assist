@@ -4,6 +4,7 @@
 const vscode = require('vscode');
 const { spawn } = require('child_process');
 const fs = require('fs');
+const os = require('os');
 const path = require('path');
 
 // Stop-gap for the round trip while clangd is not ready yet. Two things, both
@@ -29,18 +30,62 @@ const SKIP = new Set(
   'auto bool break case catch char class const continue default delete do double else enum explicit extern false float for friend goto if inline int long namespace new nullptr operator private protected public return short signed sizeof static struct switch template this throw true try typedef typename union unsigned using virtual void volatile while'.split(' '),
 );
 
-/**
- * Where clangd would find the compilation database for this file: walking up
- * from it, the first folder holding compile_commands.json directly or under
- * build/. clangd keeps the index in .cache/clangd/index of that folder - for
- * build/ too, measured on clangd 22.
- * ponytail: ignores --compile-commands-dir and .clangd's CompilationDatabase;
- * a project that moves the database there reads as having none.
- * @param {vscode.TextDocument} document
- */
+/** @param {vscode.TextDocument} document */
 function findDatabase(document, folder) {
-  const top = folder.uri.fsPath;
-  for (let dir = path.dirname(document.uri.fsPath); ; dir = path.dirname(dir)) {
+  const first = vscode.workspace.workspaceFolders?.[0]?.uri.fsPath ?? folder.uri.fsPath;
+  const args = vscode.workspace.getConfiguration('clangd', document.uri).get('arguments', []);
+  return locateDatabase(document.uri.fsPath, folder.uri.fsPath, args, first);
+}
+
+/**
+ * Where clangd would find the compilation database for this file, in the order
+ * clangd 22 lets them win (measured):
+ *  1. --compile-commands-dir in clangd.arguments. The clangd extension expands
+ *     ${workspaceFolder} (and workspaceRoot, cwd) to the first workspace folder,
+ *     ${userHome} to home, and starts clangd there, so relative paths start
+ *     there too - read from its bundle.js, 0.6.0.
+ *  2. CompilationDatabase in the nearest .clangd above the file, relative to
+ *     that .clangd. It beats a compile_commands.json next to the file.
+ *  3. Walking up to the workspace folder, the first folder holding
+ *     compile_commands.json directly or under build/.
+ * clangd keeps the index in .cache/clangd/index of the database's own folder
+ * for 1 and 2, but of the folder above build/ for 3.
+ * ponytail: .clangd is read with a regex, first CompilationDatabase line wins;
+ * If: blocks, several --- documents and the user's own config.yaml are not
+ * seen. A YAML parser is a dependency; add one only if a real project needs it.
+ * @param {string} file
+ * @param {string} top the file's workspace folder
+ * @param {string[]} args clangd.arguments
+ * @param {string} first the first workspace folder, where clangd is started
+ * @returns {{db: string, root: string} | null}
+ */
+function locateDatabase(file, top, args, first) {
+  const at = (dir) => {
+    const db = path.join(dir, 'compile_commands.json');
+    return fs.existsSync(db) ? { db, root: dir } : null;
+  };
+
+  const flag = args.findIndex((arg) => arg.startsWith('--compile-commands-dir'));
+  if (flag >= 0) {
+    const raw = args[flag].includes('=') ? args[flag].slice(args[flag].indexOf('=') + 1) : args[flag + 1] || '';
+    const dir = raw.replace(/\$\{(workspaceFolder|workspaceRoot|cwd)\}/g, first).replace(/\$\{userHome\}/g, os.homedir());
+    return at(path.resolve(first, dir));
+  }
+
+  for (let dir = path.dirname(file); ; dir = path.dirname(dir)) {
+    let text = '';
+    try {
+      text = fs.readFileSync(path.join(dir, '.clangd'), 'utf8');
+    } catch {
+      // No .clangd here.
+    }
+    const value = /^\s*CompilationDatabase:\s*['"]?([^'"#\r\n]*?)['"]?\s*(#.*)?$/m.exec(text)?.[1];
+    if (value === 'None') return null;
+    if (value && value !== 'Ancestors') return at(path.resolve(dir, value));
+    if (path.dirname(dir) === dir) break;
+  }
+
+  for (let dir = path.dirname(file); ; dir = path.dirname(dir)) {
     for (const candidate of [path.join(dir, 'compile_commands.json'), path.join(dir, 'build', 'compile_commands.json')]) {
       if (fs.existsSync(candidate)) return { db: candidate, root: dir };
     }
@@ -321,4 +366,4 @@ function similarity(guess, context, document, related, texts) {
   return Math.round((earned / possible) * 100);
 }
 
-module.exports = { indexProgress, isComplete, describeProgress, textGuesses };
+module.exports = { indexProgress, isComplete, describeProgress, textGuesses, locateDatabase };
