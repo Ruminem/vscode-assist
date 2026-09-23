@@ -22,6 +22,7 @@
     "check-keys": "node tools/check-keys.js",
     "check-nls": "node tools/check-nls.js",
     "check-dot-arrow": "node tools/check-dot-arrow.js",
+    "check-enum-values": "node tools/check-enum-values.js",
     "check-fuzzy": "node tools/check-fuzzy.js",
     "check-text-guess": "node tools/check-text-guess.js",
     "probe-clangd": "node tools/probe-clangd.js",
@@ -177,6 +178,17 @@
             "default": true,
             "scope": "language-overridable",
             "markdownDescription": "%config.dotArrow.enabled%"
+          }
+        }
+      },
+      {
+        "title": "%config.enumValues.title%",
+        "properties": {
+          "assist.enumValues.enabled": {
+            "type": "boolean",
+            "default": true,
+            "scope": "language-overridable",
+            "markdownDescription": "%config.enumValues.enabled%"
           }
         }
       }

@@ -38,6 +38,7 @@ cpptools, rust-analyzer, tsserver) 몫임. 이 성질도 깨지 않음 — 깨�
 | `features/file-search.js` | `Alt+E`. 자체 파일 검색 창. `findFiles('**/*', undefined, 20000)` 로 목록을 한 번 긁고(두 번째 인자가 `undefined` 라야 `files.exclude`·`search.exclude` 가 적용됨. `null` 이면 전부 포함) 입력마다 `fuzzy.js` 로 점수를 매김. **`Shift+Alt+O` 의 Quick Open 은 그대로 둠** — 확장이 그 창의 입력을 읽거나 매처를 바꿀 API 가 없어서 한글 변환을 넣을 수 없음. 대신 키를 하나 더한 것(`키를 더하지, 뺏지 않음`). Quick Open 의 `:42`·`@심볼`·최근 연 파일 순서는 여기 없음 |
 | `features/process-attach.js` | `Ctrl+Alt+P`·`Shift+Alt+P`. C/C++ 확장의 프로세스 선택기(`extension.pickNativeProcess`)와 `cppvsdbg` 디버거로 연결·다시 연결. 다시 연결은 마지막 실행 파일 이름을 `tasklist`로 찾음. Windows 전용 |
 | `features/dot-arrow.js` | `assist.dotArrow.enabled`(기본 켜짐, 0.5.1부터). C·C++·CUDA에서 `.` 한 글자를 입력하면 그 뒤 자리에 자동 완성을 물어, **그 목록에서 점으로 닿을 수 있는 것이 하나도 없을 때만** 점을 `->`로 바꿈(= 모든 항목이 점을 덮는 화살표 편집을 달고 옴). **화살표가 하나라도 있으면 바꾸는 첫 판은 틀렸음** — `operator->`가 있는 클래스도 화살표를 답해서 `unique_ptr.reset()`이 `->reset()`이 됐음. 점 그대로인 항목이 0개일 것까지 요구해야 스마트 포인터·반복자가 남음(clangd 18 실측: 날 포인터 2+0, `unique_ptr` 2+5, `shared_ptr` 2+10, `vector::iterator` 2+1). **`)`·`]` 뒤도 이름 뒤처럼 물음**(0.5.2) — 포인터를 돌려주는 호출·첨자·캐스트 뒤가 그 자리임. clangd 22 로 37자리를 쟀고 틀리게 바꾼 곳은 없었음. 놓친 것은 템플릿 안 `static_cast` 하나(화살표 3+점 1이라 점 그대로). 판정은 같은 규칙 그대로라 따로 두지 않았음. 완성 항목의 멤버 이름은 넣지 않고 점만 바꿈. 늦게 온 답은 `document.version`으로 버리고, `WorkspaceEdit`로 적용해 `Ctrl+Z` 한 번에 점이 돌아옴. **키로 부르는 기능이 아님** — `activate`에서 `onDidChangeTextDocument`를 걺. 변환 직후에는 컨텍스트 키 `assist.dotArrow.arrowAtCursor`를 켜고 커서가 움직이면 꺼서, **그 순간에만 `Backspace`가 `assist.dotArrow.deleteArrow`로 가 `->` 두 글자를 지움.** 명령은 지우기 전에 커서 왼쪽이 정말 `->`인지 다시 보고 아니면 `deleteLeft`로 넘김 — 컨텍스트 키는 커서가 어디 있는지의 힌트지 그 밑에 뭐가 있는지의 증거가 아님. `contributes.commands`에는 안 넣었음(팔레트에서 부를 일이 없고 nls가 안 늘어남). 돌다가 멈추는 자리마다 `trace()` 한 줄을 남김 — 조용히 아무것도 안 하면 꺼진 것과 구분이 안 돼서임 |
+| `features/enum-values.js` | `assist.enumValues.enabled`(기본 켜짐). C·C++·CUDA 열거형 멤버 줄 끝에 `= 2 (0x2)` 인레이 힌트. **값을 계산하지 않음** — 멤버마다 hover 를 물어 서버가 적은 값을 꺼냄. clangd 는 `Value = \`2\`` 줄, cpptools 는 코드 블록의 `enum class Flags::Write = 2U`(접미사 `U`·`Ui64`). clangd 22 의 자체 인레이 힌트엔 이게 없음(답이 `[]`). 멤버는 Enum 의 자식이나 EnumMember 로 찾고 **이름 위치로 중복을 거름** — clangd 와 cpptools 가 둘 다 돌면 VS Code 가 두 서버의 문서 심볼을 합쳐 줘서 힌트가 전부 두 번 나왔음. **hover 는 하나씩 물음** — 한꺼번에 보내면 cpptools 가 17개 중 3개만 답했음. 초기값이 그 숫자 리터럴 그대로면(`C = 10`) 안 닮. 음수는 기본 형식 폭을 몰라 16진수 없음. 답은 `document.version` 별로 캐시, 빈 답은 안 남김(서버가 아직 파싱 중일 때의 답이라서) |
 | `features/trace.js` | 디버깅용 추적. 기본 꺼짐 — `assist.toggleTrace`로 켜면 키 한 번당 한 줄씩 단계별 시간을 **임시 파일**(`%TEMP%/assist-trace-<pid>-*.txt`)에 남기고 상태 표시줄에 표시(누르면 꺼짐). 끌 때 저장 위치를 묻고 임시 파일은 항상 지움. 창이 닫히면 `deactivate`가 지우고, 강제 종료로 남은 건 다음 시작 때 pid가 죽은 파일만 지움. 출력 채널은 안 씀 — VS Code가 세션 로그에 옮겨 적어서. 최근 200줄은 메모용으로 메모리에 둠. 기록 문장은 영어 그대로 |
 | `features/note.js` | `assist.saveNote`. 사용자 한 줄 + 언어 서버 버전·설정 + 커서 위치에서 단계별로 하나씩 잰 시간(`round-trip.js`의 `measure`) + 최근 기록을 저장 안 된 마크다운으로 엶. 회사 PC에서 겪은 걸 집에서 고칠 때 넘기는 용도. 키 없음 |
 | `tools/check-keys.js` | 키 충돌 검사기. 런타임 아님 — 바인딩을 **추가하기 전에** 돌림 |
@@ -45,6 +46,7 @@ cpptools, rust-analyzer, tsserver) 몫임. 이 성질도 깨지 않음 — 깨�
 | `tools/check-fuzzy.js` | `hangul.js` 의 변환 표와 `fuzzy.js` 의 경로 점수 검사. `npm run check-fuzzy`. 에디터 없이 돎. **표 한 칸을 틀리면 5건, 단어 경계를 옛것으로 되돌리면 5건이 실패하는 것을 확인했음** |
 | `tools/check-dot-arrow.js` | `dot-arrow.js`가 서버 없이 스스로 내리는 두 판정(`leftOfDot`·`countEdits`) 검사. `npm run check-dot-arrow`. 에디터도 언어 서버도 안 띄우고 `vscode` 모듈을 최소한으로 흉내 냄. **옛 규칙(화살표 하나면 변환)으로 되돌리면 2건이 실패하도록 박아 뒀음** |
 | `tools/check-text-guess.js` | `text-guess.js` 가 에디터 없이 내리는 판정 검사. `npm run check-text-guess`. ① `locateDatabase` — 임시 폴더에 프로젝트를 만들어 세 자리와 우선순위를 봄. **플래그 무시 + `.clangd` 를 옛 탐색 뒤로 돌리면 7건이 실패하는 것을 확인했음** ② 추측 검색 순서(`rings`)와 정렬(`distance`·`byLikeness`). **가까움을 유사도 앞에 두거나 같은 파일 −1 을 0 으로 바꾸면 실패하는 것을 확인했음** |
+| `tools/check-enum-values.js` | `enum-values.js` 의 글자 판정(`valueOf`·`label`·`restates`) 검사. `npm run check-enum-values`. hover 문자열은 clangd 22·cpptools 1.34 실측을 옮긴 것임. **16진수 소문자·8진수 처리 빼기·음수 hex·`=` 앞 고정 빼기·cpptools 형식 빼기, 변이 다섯이 전부 실패하는 것을 확인했음** |
 | `tools/probe-clangd.js` | clangd 탐침. `npm run probe-clangd`. LSP 로 clangd 에 직접 붙어 픽스처 자리마다 `.` 을 넣고 **화살표 편집을 단 항목 수와 점 그대로인 항목 수**를 찍음. 판정 칸은 `dot-arrow.js` 의 `countEdits` 를 그대로 불러서 내므로 **진짜 서버 답에 진짜 규칙을 먹인 결과**임 — 규칙을 여기 베껴 두지 않았음. 기대값은 픽스처 README 한 곳에만 있고 이 도구는 재기만 함. `--clangd=<경로>` 나 `CLANGD` 로 지정, 없으면 PATH 에서 찾음. **못 재면 종료 코드 2** — 1 이 아닌 이유는 "못 쟀다"가 "쟀는데 틀렸다"로 읽히면 안 되기 때문임. `unique_ptr` 버그를 잡은 게 이 도구임. **파일 URI 는 `pathToFileURL` 로 만듦** — `file://C:\...` 을 붙여 쓰면 clangd 22 가 말없이 버려 매번 시간 초과가 남 |
 | `tools/release.js` | 태그를 `package.json` 버전에서 만듦. 인자 없이 돌리면 점검만 하고, `--push`면 태그를 만들어 밈. neon-glow에서 가져옴 |
 | `tools/make-icon.js` | `icon.png` 생성기. 의존성 없음. neon-glow 렌더러를 모양 하나로 줄인 것 |
@@ -52,12 +54,13 @@ cpptools, rust-analyzer, tsserver) 몫임. 이 성질도 깨지 않음 — 깨�
 | `.cache/` | `check-keys`가 받아두는 기본 키맵 세 플랫폼분. gitignore 대상 |
 | `fixtures/round-trip/` | `Alt+G`가 답해야 하는 자리를 한 화면에 모은 C++ 세 파일. 손으로 돌리는 인수 테스트임 — 자체 `README.md`에 다섯 자리와 기대 결과가 있음. VSIX에는 안 들어감 |
 | `fixtures/dot-arrow/` | `.`→`->`가 발동해야 하는 자리와 발동하면 안 되는 자리를 모은 C++ 한 파일. **커서를 `;` 앞에 두고 `.`을 침** — 자체 `README.md`에 열세 자리와 기대 결과가 있음. 경고 없이 컴파일되게 써 둠(경고 물결선이 뜨면 실패가 무엇 탓인지 흐려짐). VSIX에는 안 들어감 |
+| `fixtures/enum-values/` | 열거형 모양을 모은 C++ 한 파일. 줄 끝 주석이 그 줄에 나와야 할 힌트임. **서버가 그 주석을 멤버의 문서 주석으로 읽어 hover 에 넣으므로** 주석이 `expect` 로 시작함 — 안 그러면 hover 에 힌트와 똑같은 글자가 떠서 서버가 쓴 것처럼 보임(실제로 한 번 속았음). compile DB 없이 clangd 기본 플래그로 파싱됨. VSIX에는 안 들어감 |
 | `l10n/bundle.l10n.ko.json` | 화면 문구의 한국어 번역. 키는 영어 원문 그대로임. VS Code 표시 언어가 한국어면 쓰이고, 아니면 원문이 나옴 |
 | `package.nls.json` / `package.nls.ko.json` | 명령 제목과 설정 설명의 영어 원문과 한국어. `package.json`에는 `%키%`만 있음 |
 | `NEXT.md` | 세션 인수인계 노트. VSIX에는 안 들어감 |
 
 명령: `assist.roundTrip` `assist.roundTrip.explain` `assist.nextFunction` `assist.previousFunction` `assist.searchSymbols` `assist.attachToProcess` `assist.reattachToProcess` `assist.saveNote` `assist.toggleTrace` `assist.searchFiles` `assist.dotArrow.deleteArrow`(키 전용, 팔레트에 없음)
-설정: `assist.keymap.enabled` `assist.roundTrip.providers` `assist.roundTrip.searchByName` `assist.roundTrip.pickWhenAmbiguous` `assist.roundTrip.textSearch` `assist.symbolSearch.fuzzy` `assist.dotArrow.enabled`
+설정: `assist.keymap.enabled` `assist.roundTrip.providers` `assist.roundTrip.searchByName` `assist.roundTrip.pickWhenAmbiguous` `assist.roundTrip.textSearch` `assist.symbolSearch.fuzzy` `assist.dotArrow.enabled` `assist.enumValues.enabled`
 
 ## 기능을 더하는 비용은 두 갈래임
 
@@ -86,6 +89,8 @@ clangd는 이름 앞부분과 단어 머리글자만 맞춰서 `ce`(→ `Circle`
 **입력한 내용이 바뀜.** 그래서 여기에 더 넣기 전에 정말 키로는 안 되는지 먼저 물을 것.
 0.5.0은 기본 꺼짐이었음 — setup 이 팀원 PC 에 이 확장을 `--force`로 깔고 있어서였음. 0.5.1에서
 켜 달라는 요청으로 기본 켜짐이 됐음. 판정을 서버에 맡겨 스마트 포인터가 안 깨지는 것을 확인한 뒤임.
+`enum-values.js` 도 이 갈래지만(인레이 힌트 제공자를 `activate` 에서 걺) **화면에 그리기만 하고
+입력은 안 바꿈** — 잘못 돌아도 틀린 숫자가 보일 뿐이라 처음부터 기본 켜짐으로 냈음.
 
 ## 키 정책 — 이 프로젝트의 중심
 

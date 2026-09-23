@@ -155,9 +155,9 @@ In C and C++, a `.` typed after a pointer is a slip of the hand every time, and
 the fix is always the same three keystrokes back. With
 `assist.dotArrow.enabled` on, the dot becomes `->` as you type.
 
-**It is on by default**, and it is the one thing here that does not wait to be
-asked: everything else happens when you press a key, this one changes what you
-typed. If that is not wanted, turn it off for a workspace, or for one language
+**It is on by default**, and it is the one thing here that changes what you
+typed without being asked: everything else waits for a key, and the enum values
+below only draw on the screen. If that is not wanted, turn it off for a workspace, or for one language
 with a `"[cpp]"` block.
 
 **Whether the thing on the left is a pointer is not decided here.** Right after
@@ -218,6 +218,43 @@ Three smaller decisions, in the order you would hit them:
 `fixtures/dot-arrow/` holds every one of these cases in one file, with what to
 expect at each. Turn tracing on to see what the server answered and how long it
 took per dot.
+
+## Enum values
+
+Each enumerator in a C, C++ or CUDA file gets its value at the end of its line,
+as an inlay hint:
+
+```cpp
+enum class Flags : unsigned char {
+  Read = 1 << 0,        = 1 (0x1)
+  Write = 1 << 1,       = 2 (0x2)
+  All = Read | Write,   = 3 (0x3)
+};
+```
+
+The number was always there, in the hover. This only brings it out, so you can
+read a flag set or a protocol table without pointing at every line.
+
+**Nothing is computed here.** The value is the one the language server already
+worked out for its hover - clangd writes `Value = 2`, cpptools shows
+`Flags::Write = 2U` - so shifts, `constexpr`, character literals and
+`uint64_t` come out exactly as the compiler sees them. clangd 22 has no inlay
+hint of its own for this; its answer is empty.
+
+- **A value the initializer already spells out gets no hint.** `C = 10` would
+  only say 10 twice. `Read = 1 << 0` and `Ex = 'x'` are what the hint is for.
+- **A negative value is shown without hex.** The hover does not say how wide
+  the underlying type is, and `0xFFFFFFFF` is only right for one width.
+- **An enumerator whose value depends on a template argument gets nothing**,
+  because the server has no number to give either.
+- **Only what is on screen is asked about**, one hover at a time, and the
+  answers are kept until the document changes. One at a time because cpptools,
+  sent seventeen hovers at once, answered three.
+
+`assist.enumValues.enabled` turns these off, per language if you like.
+`editor.inlayHints.enabled` turns off every inlay hint, clangd's own included.
+`fixtures/enum-values/` has every shape above in one file, with the hint each
+line should get.
 
 ## Searching files
 
@@ -326,6 +363,7 @@ only thing that can give it back.
 | `assist.roundTrip.textSearch` | `true` | While clangd's index is incomplete, add text guesses with a similarity percentage. |
 | `assist.symbolSearch.fuzzy` | `true` | Start `Shift+Alt+S` with fuzzy matching on. |
 | `assist.dotArrow.enabled` | `true` | Turn a `.` typed after a pointer into `->`, in C, C++ and CUDA. |
+| `assist.enumValues.enabled` | `true` | Show each enumerator's value at the end of its line, in C, C++ and CUDA. |
 
 ## Rebinding
 
@@ -366,10 +404,11 @@ slots survived the translation. It is worth a habit, because a missing
 translation does not fail: VS Code shows the English and the extension keeps
 working, so nothing tells you until someone reads the Korean.
 
-Two more, for the dot-to-arrow conversion:
+More, for the features that read what a server answers:
 
 ```
 npm run check-dot-arrow      the two decisions it makes without a server
+npm run check-enum-values    reading a value out of a hover, and when to stay quiet
 npm run check-fuzzy          the Hangul table and how paths score
 npm run probe-clangd         what clangd actually answers, over LSP
 ```

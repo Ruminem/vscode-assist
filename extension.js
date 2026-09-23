@@ -20,6 +20,7 @@ const FEATURES = [
   require('./features/file-search'),
   require('./features/process-attach'),
   require('./features/dot-arrow'),
+  require('./features/enum-values'),
   require('./features/note'),
   require('./features/trace'),
 ];
