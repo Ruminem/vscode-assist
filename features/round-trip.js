@@ -380,7 +380,9 @@ function describe(hit) {
       : hit.kind === 'text'
         ? vscode.l10n.t('Text guess {0}% · {1}', hit.similarity, hit.label)
         : LABELS[hit.role || hit.kind] || hit.kind;
-  return `${source}  —  ${where(hit.loc)}${hit.text ? `  ·  ${hit.text}` : ''}`;
+  // The code before the place: it is what tells two rows apart, and the path is
+  // the part a narrow menu can afford to lose.
+  return `${source}  —  ${hit.text ? `${hit.text}  ·  ` : ''}${where(hit.loc)}`;
 }
 
 // A menu row has one line and no hover, so the line of code the row lands on is
