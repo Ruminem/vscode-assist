@@ -56,6 +56,19 @@ function literalBase(text, value) {
   return (match[1] ? -literal : literal) === value ? base : 0;
 }
 
+/**
+ * How far past the enumerator's end the hint goes. Both servers end the range
+ * before the comma, so `Fill = 1u << 0 = 1 (0x1),` read as if the expression
+ * went on. When the comma is the last thing on the line but a comment, the hint
+ * goes after it; when another enumerator follows, it stays put so each hint
+ * sits by its own name.
+ * @param {string} rest the line after the enumerator's range
+ */
+function afterComma(rest) {
+  const match = /^\s*,(?=\s*(\/\/|\/\*|$))/.exec(rest);
+  return match ? match[0].length : 0;
+}
+
 // Hover answers for one version of one document, by enumerator position.
 // Scrolling asks again for every range the editor shows, and the answer only
 // changes when the text does. An empty answer is not kept: it is what a server
@@ -128,7 +141,8 @@ async function provideInlayHints(document, range, token) {
     // are no easier to read than hex, so they keep both.
     const base = literalBase(document.getText(where), value);
     if (base === 10) continue;
-    const hint = new vscode.InlayHint(where.end, label(value, base === 16));
+    const rest = document.lineAt(where.end.line).text.slice(where.end.character);
+    const hint = new vscode.InlayHint(where.end.translate(0, afterComma(rest)), label(value, base === 16));
     hint.paddingLeft = true;
     found.push(hint);
   }
@@ -150,4 +164,5 @@ module.exports = {
   valueOf,
   label,
   literalBase,
+  afterComma,
 };

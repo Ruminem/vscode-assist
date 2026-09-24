@@ -20,7 +20,7 @@ const load = Module._load;
 Module._load = function (request, ...rest) {
   return request === 'vscode' ? {} : load.call(this, request, ...rest);
 };
-const { valueOf, label, literalBase } =require('../features/enum-values');
+const { valueOf, label, literalBase, afterComma } = require('../features/enum-values');
 
 let failed = 0;
 function check(name, actual, expected) {
@@ -62,6 +62,14 @@ check('char literal is not an integer literal', literalBase("Ch = 'x'", 120n), 0
 check('expression ending in a literal', literalBase('Q = k + 1', 1n), 0);
 check('comparison ending in a literal', literalBase('X = Y == 1', 1n), 0);
 check('literal that disagrees', literalBase('C = 10', 11n), 0);
+
+check('comma ending the line', afterComma(','), 1);
+check('comma then a comment', afterComma(",   // expect = 1 (0x1)"), 1);
+check('comma then a block comment', afterComma(', /* x */'), 1);
+check('space before the comma', afterComma(' ,'), 2);
+check('last enumerator has no comma', afterComma(''), 0);
+check('another enumerator on the line', afterComma(', TopRight, BottomRight = 4, BottomLeft };'), 0);
+check('closing brace on the line', afterComma(' };'), 0);
 
 if (failed) {
   console.log(`\n${failed} failed`);
