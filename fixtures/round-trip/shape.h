@@ -55,6 +55,10 @@ enum Layer : unsigned {
   Stroke = 1u << 1,
   Shadow = 1u << 4,
   Everything = Fill | Stroke | Shadow,
+  test = 0x9,
+  test2 = 0x99,
+  test3 = 0x999,
+  test4 = 0x9999
 };
 
 struct Palette {

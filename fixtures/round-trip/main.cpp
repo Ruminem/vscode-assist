@@ -6,10 +6,10 @@ int main() {
   const Shape* shapes[] = {&a, &b};
 
   // [1] call site - offers the definition and the declaration
-  double sum = totalArea(shapes, 2);
+  auto sum = totalArea(shapes, 2);
 
   // [8] namespaced call site - geo's definition and declaration, nothing of ui's
-  double big = geo::scale(sum, 2.0);
+  auto big = geo::scale(sum, 2.0);
 
   return big > sum ? 0 : 1;
 }
