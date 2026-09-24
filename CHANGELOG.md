@@ -1,5 +1,13 @@
 # Changelog
 
+## 0.5.9 — 2026-09-24
+
+- An enumerator's value hint now sits after its comma when only a comment follows, so `Fill = 1u << 0, = 1 (0x1)` no longer reads as part of the initializer. Enumerators sharing a line keep the hint right after each name.
+
+**한국어**
+
+- 쉼표 뒤에 주석만 남은 줄에서는 열거형 값 힌트가 쉼표 뒤에 붙음. `Fill = 1u << 0, = 1 (0x1)` 처럼 되어 초기값 식에 이어 붙은 것처럼 읽히지 않음. 한 줄에 멤버가 여럿이면 지금처럼 각 이름 바로 뒤에 붙음.
+
 ## 0.5.8 — 2026-09-24
 
 - An enumerator whose initializer is a hex literal (`Mask = 0x9999`) now shows its decimal value (`= 39321`) instead of no hint.
