@@ -22,6 +22,9 @@ cpptools, rust-analyzer, tsserver) 몫임. 이 성질도 깨지 않음 — 깨�
   `src/*.md` 를 직접 읽음.** 도중에 붙인 저장소의 `CLAUDE.md` 는 자동으로 안 실림
   (`register_repo_root` 를 불러도 안 됨, 2026-09-19 규칙 저장소 쪽에서 잼). 읽은 규칙은 대화
   기록이라 compaction 때 사라질 수 있으니, compaction 뒤에는 한 번 더 읽음
+- **어느 경우든 `skills/vscode-ext/SKILL.md` 는 직접 읽음.** VS Code 확장 규칙(UI 언어·vsx-tools·
+  첫 게시)이 스킬로 옮겨 가 `~/.claude/skills/` 에 복사돼야 뜨는데, 컨테이너엔 그 자리가 없어
+  루트 `CLAUDE.md` 로도 안 실림 (2026-09-28 클라우드 세션 스킬 목록에 없음을 봄)
 - 규칙 저장소의 `turn-usage.py`(답장 끝 사용량 줄)도 거기서 부름
 
 ## 구조
