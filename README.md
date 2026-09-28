@@ -262,16 +262,21 @@ line should get.
 
 `Alt+E` opens a file search of this extension's own. Type the letters of the
 path in order, each one starting a word or following the letter before - `fda`
-reaches `features/dot-arrow.js`, `ckjs` reaches `check-keys.js` - or a whole
-run from anywhere, `sets` in `CMakePresets.json`. Each row puts the file name
-first and its folder after, as VS Code's own picker does, so a deep path clips
-the folder and never the name. The highlights are VS Code's own, and the rule
-above is exactly what its picker can highlight, so a row without one is rare:
-a name its matcher refuses (a fifth or more digits, or past 60 characters), a
-match that runs from the folder into the name, a query with spaces in it, or
-one typed through a Korean keyboard. What the rule gives up is the consonant
-skeleton - `fzy` no longer reaches `fuzzy.js` here, though Quick Open still
-takes it.
+reaches `features/dot-arrow.js`, `ckc` reaches `check-keys copy.js` - or a
+whole run from anywhere, `sets` in `CMakePresets.json`. Words are counted the
+way VS Code's own picker counts them, since the highlights are its own and this
+rule is exactly what it can highlight: a word starts after a space or any
+punctuation, at a digit, and at a capital. A name it does not read as words - a
+fifth or more digits, or a fifth or fewer small letters like
+`CODE_OF_CONDUCT.md` - has no word starts and matches by a run only; in a name
+of capitals alone like `README` the capitals do not start words; and nothing
+past the first 60 characters does. Each row puts the file name first and its
+folder after, as VS Code's own picker does, so a deep path clips the folder and
+never the name. A row without highlights is rare: a match that runs from the
+folder into the name, a query with spaces in it, or one typed through a Korean
+keyboard. What the rule gives up is the consonant skeleton - `fzy` no longer
+reaches `fuzzy.js` here - and abbreviations of names like `CODE_OF_CONDUCT.md`;
+Quick Open still takes both.
 
 **The list is ordered the way VS Code's own picker orders it.** Before you type,
 it shows the files you opened recently in this workspace, newest first, followed

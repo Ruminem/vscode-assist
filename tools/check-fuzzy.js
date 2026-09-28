@@ -138,6 +138,15 @@ check('ckjs does not reach a name through Che[c][k]…[j][s]on', rank('ckjs', 'x
 check('ckjs still reaches check-keys.js', rank('ckjs', 'tools/check-keys.js') !== null, true);
 check('the consonant skeleton is what this gives up', rank('fzy', 'features/fuzzy.js'), null);
 
+// Word starts as the picker counts them, which is more than startsWord does.
+check('a letter after a space starts a word', rank('ckc', 'tools/check-keys copy.js') !== null, true);
+check('a digit starts a word', rank('f2', 'x/file2.txt') !== null, true);
+check('a capital after a capital starts a word in a camel-looking name', rank('rd', 'x/README.md') !== null, true);
+check('but not in a name of capitals alone, which the picker lowers', rank('rd', 'x/README'), null);
+// And less: a name the picker does not read as words at all gets runs only.
+check('a name of mostly capitals is matched by runs only', rank('coc', 'x/CODE_OF_CONDUCT.md'), null);
+check('past the picker\'s 60 characters only a run reaches', rank('ab', `x/a${'x'.repeat(60)}-b.js`), null);
+
 // Pieces split on spaces, all required, in any order.
 check('pieces match in any order', rank('js dot', 'features/dot-arrow.js') !== null, true);
 check('every piece has to match', rank('dot zzz', 'features/dot-arrow.js'), null);

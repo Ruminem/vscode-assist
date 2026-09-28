@@ -27,6 +27,41 @@ function startsWord(text, i) {
 }
 
 /**
+ * The quick pick's own word starts in a label: where it lets a highlighted
+ * letter land after a gap (filters.ts matchesCamelCase and nextAnchor, main
+ * 2026-09-28). A capital, a digit, or anything after a character that is not an
+ * ASCII letter or digit - a space or a bracket as much as a dash.
+ *
+ * The pick looks at the first PICKER_CUT characters only, and sizes them up
+ * first. A label that does not read as camel case - a fifth or more digits, a
+ * fifth or fewer small letters, four fifths capitals, or two fifths neither
+ * letter nor digit - gets no word starts at all, and only a run is highlighted
+ * in it: null comes back. CODE_OF_CONDUCT.md is one. The exception is a label
+ * of capitals with no small letter, which is lowered first: README keeps its
+ * start at R and loses the D that README.md has.
+ * @param {string} label
+ * @returns {((i: number) => boolean) | null}
+ */
+const PICKER_CUT = 60;
+const WORD = /[A-Za-z0-9]/;
+function pickerAnchors(label) {
+  const n = Math.min(label.length, PICKER_CUT);
+  let upper = 0;
+  let lower = 0;
+  let digits = 0;
+  for (let i = 0; i < n; i++) {
+    const c = label[i];
+    if (c >= 'A' && c <= 'Z') upper++;
+    else if (c >= 'a' && c <= 'z') lower++;
+    else if (c >= '0' && c <= '9') digits++;
+  }
+  const camel = lower / n > 0.2 && upper / n < 0.8 && (upper + lower + digits) / n > 0.6 && digits / n < 0.2;
+  if (!camel && !(lower === 0 && upper / n > 0.6)) return null;
+  const start = camel ? /[A-Z0-9]/ : /[0-9]/;
+  return (i) => i === 0 || start.test(label[i]) || !WORD.test(label[i - 1]);
+}
+
+/**
  * Every character of the query, in order, anywhere in the name - so "ce" finds
  * Circle. That is the match clangd will not make on its own: it only matches at
  * the start of the name or at word starts, and answers "ce" with nothing.
@@ -45,23 +80,30 @@ function startsWord(text, i) {
  * `anchored` narrows the fits to the ones that matcher can draw (filters.ts
  * matchesFuzzy, 2026-09-28): the query as one run wherever it sits, or else a
  * first letter that starts a word and every next letter either starting a word
- * or following the one before. The file search asks for this, so that no row it
- * shows is one the picker leaves unhighlighted - `ckjs` no longer reaches
- * package.json through pa[ck]age.[js]on. The symbol search does not: `ce` on
- * Circle is the match it exists for, highlight or not.
+ * or following the one before - word starts as the pick counts them
+ * (pickerAnchors), within its first PICKER_CUT characters. The file search asks
+ * for this, so that no row it shows is one the picker leaves unhighlighted -
+ * `ckjs` no longer reaches package.json through pa[ck]age.[js]on, and `ckc`
+ * reaches `check-keys copy.js`. The symbol search does not: `ce` on Circle is
+ * the match it exists for, highlight or not.
  * @param {string} query @param {string} name @param {boolean} [anchored]
  * @returns {{score: number, positions: number[]} | null}
  */
 function fuzzyMatch(query, name, anchored = false) {
   const q = query.toLowerCase();
   const t = name.toLowerCase();
-  const n = t.length;
-  if (!q.length || q.length > n) return null;
+  if (!q.length || q.length > t.length) return null;
   // Most of the list does not hold the letters in order at all. Rule those out
   // with one pass before the scoring below allocates two arrays per letter.
   let k = 0;
-  for (let i = 0; i < n && k < q.length; i++) if (t[i] === q[k]) k++;
+  for (let i = 0; i < t.length && k < q.length; i++) if (t[i] === q[k]) k++;
   if (k < q.length) return null;
+
+  // Anchored, the word starts are the pick's, and so is the cut: past it only
+  // the run at the end can reach.
+  const anchors = anchored ? pickerAnchors(name) : null;
+  const startsAt = anchored ? (i) => anchors !== null && anchors(i) : (i) => startsWord(name, i);
+  const n = anchored ? Math.min(t.length, PICKER_CUT) : t.length;
 
   let prev = [];
   const back = [];
@@ -78,7 +120,7 @@ function fuzzyMatch(query, name, anchored = false) {
         apartAt = i - 2;
       }
       if (t[i] !== q[j]) continue;
-      const starts = startsWord(name, i);
+      const starts = startsAt(i);
       const gain = 1 + (starts ? 2 : 0);
       if (j === 0) {
         if (!anchored || starts) cur[i] = gain;
@@ -110,7 +152,7 @@ function fuzzyMatch(query, name, anchored = false) {
     const at = anchored ? t.indexOf(q) : -1;
     if (at < 0) return null;
     const positions = Array.from(q, (_, k) => at + k);
-    const score = positions.reduce((sum, i) => sum + 1 + (startsWord(name, i) ? 2 : 0), 3 * (q.length - 1));
+    const score = positions.reduce((sum, i) => sum + 1 + (startsAt(i) ? 2 : 0), 3 * (q.length - 1));
     return { score: score - name.length / 100, positions };
   }
 
