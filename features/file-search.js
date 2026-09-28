@@ -3,7 +3,7 @@
 
 const vscode = require('vscode');
 const { trace, since } = require('./trace');
-const { fuzzyMatch, exactMatch, decorate } = require('./fuzzy');
+const { fuzzyMatch, decorate } = require('./fuzzy');
 const { readings } = require('./hangul');
 
 // A list longer than this is not being read, it is being scrolled.
@@ -66,24 +66,25 @@ const nameStart = (path) => Math.max(path.lastIndexOf('/'), path.lastIndexOf('\\
  * outranks a file whose own name holds the letters. A piece with a slash in it
  * is a path, and goes straight to the path.
  *
- * `contiguous` is for the recently opened files, which Quick Open matches with
- * the letters adjacent and in the name only. They are few and already known, so
- * a loose match there is noise.
- * @param {string} piece @param {string} path @param {boolean} contiguous
+ * `nameOnly` is for the recently opened files: a folder name would match most
+ * of them at once (`feat` against fifty files under `features/`), and they are
+ * few enough for the name alone to tell them apart. Quick Open also wants the
+ * letters adjacent there; this one does not, so the file just left still comes
+ * first when it is typed as an abbreviation - fifty files hold little noise.
+ * @param {string} piece @param {string} path @param {boolean} nameOnly
  */
-function matchPiece(piece, path, contiguous) {
-  const match = contiguous ? exactMatch : fuzzyMatch;
+function matchPiece(piece, path, nameOnly) {
   if (!/[\\/]/.test(piece)) {
     const cut = nameStart(path);
     const name = path.slice(cut);
-    const hit = match(piece, name);
+    const hit = fuzzyMatch(piece, name);
     if (hit) {
       const tier = name.toLowerCase().startsWith(piece.toLowerCase()) ? NAME_PREFIX : IN_NAME;
       return { score: tier + hit.score, positions: hit.positions.map((i) => i + cut) };
     }
-    if (contiguous) return null;
+    if (nameOnly) return null;
   }
-  return match(piece, path);
+  return fuzzyMatch(piece, path);
 }
 
 /**
@@ -96,16 +97,16 @@ function matchPiece(piece, path, contiguous) {
  * higher is the one shown, which means a Korean file name still matches as
  * itself and an English one typed with the input method on matches through its
  * keys - without this having to decide which the person meant.
- * @param {string} query @param {string} path @param {boolean} contiguous
+ * @param {string} query @param {string} path @param {boolean} nameOnly
  * @returns {{score: number, positions: number[]} | null}
  */
-function matchPath(query, path, contiguous) {
+function matchPath(query, path, nameOnly) {
   let score = 0;
   const positions = [];
   for (const piece of query.split(/\s+/).filter(Boolean)) {
     let found = null;
     for (const reading of readings(piece)) {
-      const match = matchPiece(reading, path, contiguous);
+      const match = matchPiece(reading, path, nameOnly);
       if (match && (!found || match.score > found.score)) found = match;
     }
     if (!found) return null;
@@ -168,8 +169,12 @@ function recentFiles() {
     });
 }
 
-/** @param {{uri: vscode.Uri, path: string}} file @param {number[]} positions */
-function row(file, positions) {
+/**
+ * @param {{uri: vscode.Uri, path: string}} file @param {number[]} positions
+ * @param {string} section @param {number} rank Where the row sits, for the trace
+ * line written when it is chosen.
+ */
+function row(file, positions, section, rank) {
   // Name first and folder after, as VS Code's own file picker lays it out: a row
   // too narrow for a deep path clips the folder, never the name. The matched
   // letters are split between the two so both still show what was hit.
@@ -178,6 +183,8 @@ function row(file, positions) {
     label: `$(file) ${decorate(file.path.slice(cut + 1), positions.filter((i) => i > cut).map((i) => i - cut - 1))}`,
     description: cut > 0 ? decorate(file.path.slice(0, cut), positions.filter((i) => i < cut)) : undefined,
     uri: file.uri,
+    section,
+    rank,
     // The picker filters by label on its own, with a matcher that is not this
     // one - and the label's matched letters are bold look-alikes it cannot
     // read, so without this every row vanished the moment anything was typed.
@@ -208,10 +215,10 @@ async function searchFiles() {
   const recents = recentFiles();
 
   /**
-   * Two sections, as Quick Open has them: the recently opened files matched
-   * with the letters adjacent, then every other file matched loosely. With no
-   * query the recent section is the whole list; the start of the alphabet is
-   * shown only when there is nothing recent at all.
+   * Two sections, as Quick Open has them: the recently opened files matched by
+   * name alone, then every other file. With no query the recent section is the
+   * whole list; the start of the alphabet is shown only when there is nothing
+   * recent at all.
    */
   const refresh = () => {
     const query = picker.value.trim();
@@ -220,8 +227,8 @@ async function searchFiles() {
 
     if (!query) {
       picker.items = recents.length
-        ? recents.map((file) => row(file, []))
-        : files.slice(0, MAX_ITEMS).map((file) => row(file, []));
+        ? recents.map((file, i) => row(file, [], 'recent', i + 1))
+        : files.slice(0, MAX_ITEMS).map((file, i) => row(file, [], 'all', i + 1));
       return;
     }
 
@@ -246,11 +253,11 @@ async function searchFiles() {
     const items = [];
     if (recentHits.length) {
       items.push(separator(vscode.l10n.t('recently opened')));
-      items.push(...recentHits.map(({ file, match }) => row(file, match.positions)));
+      items.push(...recentHits.map(({ file, match }, i) => row(file, match.positions, 'recent', i + 1)));
     }
     if (scored.length) {
       items.push(separator(vscode.l10n.t('file results')));
-      items.push(...scored.slice(0, MAX_ITEMS).map(({ file, match }) => row(file, match.positions)));
+      items.push(...scored.slice(0, MAX_ITEMS).map(({ file, match }, i) => row(file, match.positions, 'files', i + 1)));
     }
     picker.items = items;
     trace(
@@ -263,12 +270,24 @@ async function searchFiles() {
   refresh();
   loading.then(refresh);
 
+  // Which row was taken, from which section, and for what query - or that the
+  // picker was closed without one. Read back after a few days of use, these
+  // lines say whether the ordering above is right for the person typing; they
+  // are the measurement the ordering was otherwise going to be guessed from.
+  let accepted = false;
   picker.onDidAccept(async () => {
-    const chosen = /** @type {{uri?: vscode.Uri}} */ (picker.selectedItems[0]);
+    const chosen = /** @type {{uri?: vscode.Uri, section?: string, rank?: number}} */ (picker.selectedItems[0]);
+    const query = picker.value.trim();
+    accepted = true;
     picker.hide();
-    if (chosen && chosen.uri) await vscode.window.showTextDocument(chosen.uri);
+    if (!chosen || !chosen.uri) return;
+    trace(`file search: "${query}" chose #${chosen.rank} of ${chosen.section}`);
+    await vscode.window.showTextDocument(chosen.uri);
   });
-  picker.onDidHide(() => picker.dispose());
+  picker.onDidHide(() => {
+    if (!accepted) trace(`file search: "${picker.value.trim()}" dismissed`);
+    picker.dispose();
+  });
 }
 
 /** @param {vscode.ExtensionContext} context */

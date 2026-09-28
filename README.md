@@ -270,10 +270,11 @@ the name.
 it shows the files you opened recently in this workspace, newest first, followed
 by whatever else is open in a tab; the file you are in is left out, so `Alt+E`
 `Enter` steps back to the previous one. Once you type, those recent files stay
-on top under **recently opened**, but only when the letters you typed sit next
-to each other in the file name - they are few and already known, so a loose
-match there would be noise. Every other file follows under **file results**,
-matched loosely. There, a hit in the file name always ranks above a hit that
+on top under **recently opened**, matched as loosely as the rest but by the
+file name alone - a folder name would match most of them at once. VS Code's own
+picker wants the letters adjacent there; this one does not, so the file you
+just left still comes first when you type it as an abbreviation. Every other
+file follows under **file results**. There, a hit in the file name always ranks above a hit that
 needs the folders, and a name that starts with what you typed ranks above both;
 `fda` still reaches `features/dot-arrow.js` by its folders, it just no longer
 beats a file whose own name holds those letters. Spaces split the query into

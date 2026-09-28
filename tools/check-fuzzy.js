@@ -104,8 +104,8 @@ check('a Hangul query reaches an English path', readings(query).some((r) => fuzz
 // --- how the file search orders a whole path ----------------------------------
 
 const { matchPath } = require(path.join(ROOT, 'features', 'file-search.js'));
-const rank = (query, target, contiguous = false) => {
-  const match = matchPath(query, target, contiguous);
+const rank = (query, target, nameOnly = false) => {
+  const match = matchPath(query, target, nameOnly);
   return match ? match.score : null;
 };
 const above = (query, first, second) => rank(query, first) > rank(query, second);
@@ -125,10 +125,11 @@ check('pieces match in any order', rank('js dot', 'features/dot-arrow.js') !== n
 check('every piece has to match', rank('dot zzz', 'features/dot-arrow.js'), null);
 check('a Hangul piece is read through its keys', rank('애 ㅓㄴ', 'features/dot-arrow.js') !== null, true);
 
-// The recent section: adjacent letters, in the name only.
-check('a recent file matches with adjacent letters', rank('arrow', 'features/dot-arrow.js', true) !== null, true);
-check('a recent file does not match scattered letters', rank('dar', 'features/dot-arrow.js', true), null);
+// The recent section: as loose as the rest, but the name alone - unless the
+// piece is a path.
+check('a recent file matches scattered letters in its name', rank('dar', 'features/dot-arrow.js', true) !== null, true);
 check('a recent file does not match through its folder', rank('feat', 'features/dot-arrow.js', true), null);
+check('a recent file matches a piece with a slash by its path', rank('feat/dot', 'features/dot-arrow.js', true) !== null, true);
 
 console.log(failed ? `\n${failed} failed` : '\nall passed');
 process.exit(failed ? 1 : 0);
