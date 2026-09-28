@@ -1,5 +1,23 @@
 # Changelog
 
+## 0.6.0 — 2026-09-28
+
+- `Alt+E` lists the files you opened recently first, newest first, and leaves out the one you are in - so `Alt+E` `Enter` steps back to the previous file. Below them, a hit in the file name ranks above one that needs the folders, and a name that starts with what you typed ranks above both. Spaces split the query into pieces that must all match, in any order.
+- `Alt+E` lists what Quick Open lists: hidden files in, `files.exclude` and `search.exclude` out, `.gitignore`, `.ignore` and `.git/info/exclude` honoured. Build folders the project ignores no longer show.
+- The matched letters are highlighted by VS Code itself, bold and in the theme colour, in place of the faint look-alike letters. The **recently opened** and **file results** labels stay while you type.
+- What `Alt+E` matches is exactly what VS Code can highlight: each letter starts a word or follows the one before, or the whole query sits somewhere as a run. Consonant abbreviations such as `fzy` for `fuzzy.js` no longer match; Quick Open still takes them.
+- `Shift+Alt+S` keeps the extension's own ordering while you type, instead of being re-sorted by the picker.
+- With tracing on, `Alt+E` records which row was chosen.
+
+**한국어**
+
+- `Alt+E` 가 최근에 연 파일을 새것부터 먼저 보여 주고, 지금 보고 있는 파일은 뺌 — 그래서 `Alt+E` `Enter` 가 직전 파일로 돌아감. 그 아래에서는 파일 이름에서 맞은 것이 폴더까지 써야 맞은 것보다 위이고, 이름이 친 글자로 시작하는 것이 그 둘보다 위임. 띄어쓰기로 질의를 조각내면 조각이 전부 맞아야 하고 순서는 상관없음.
+- `Alt+E` 목록이 Quick Open 과 같아짐 — 숨김 파일은 들어가고, `files.exclude`·`search.exclude` 는 빠지고, `.gitignore`·`.ignore`·`.git/info/exclude` 를 따름. 프로젝트가 무시하는 빌드 폴더가 더는 안 뜸.
+- 맞은 글자를 VS Code 가 직접 강조함 — 굵게, 테마 색으로. 흐릿한 유사 굵은 글자는 뺐음. 치는 동안에도 **최근에 사용한 항목**·**파일 결과** 라벨이 남음.
+- `Alt+E` 가 맞추는 것이 VS Code 가 강조할 수 있는 것과 같아짐 — 글자마다 단어 머리에 있거나 앞 글자에 바로 붙거나, 아니면 질의 통째가 어딘가에 붙어 있어야 함. `fuzzy.js` 를 `fzy` 로 찾는 자음 약어는 더는 안 맞음. Quick Open 에서는 찾힘.
+- `Shift+Alt+S` 도 치는 동안 창이 다시 정렬하지 않고 확장의 순서를 유지함.
+- 추적을 켜 두면 `Alt+E` 에서 어느 행을 골랐는지 기록함.
+
 ## 0.5.9 — 2026-09-24
 
 - An enumerator's value hint now sits after its comma when only a comment follows, so `Fill = 1u << 0, = 1 (0x1)` no longer reads as part of the initializer. Enumerators sharing a line keep the hint right after each name.
