@@ -88,6 +88,14 @@ async function searchSymbols() {
   picker.placeholder = vscode.l10n.t('Search symbols in the workspace');
   picker.matchOnDescription = false;
   picker.matchOnDetail = false;
+  // The widget would otherwise re-sort the rows by its own label match while
+  // anything is typed. Proposed by name, reachable from JavaScript, guarded;
+  // file-search.js has the whole story.
+  try {
+    /** @type {any} */ (picker).sortByLabel = false;
+  } catch {
+    // Left as it was.
+  }
   picker.buttons = [fuzzyButton(fuzzy)];
 
   // Everything the server will hand over for an empty query, fetched once. A

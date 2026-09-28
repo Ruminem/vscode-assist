@@ -31,12 +31,13 @@ const MAX_FILES = 20000;
 /**
  * Every file in the workspace, as paths to match against.
  *
- * `undefined` for the exclude pattern is what asks VS Code to apply the
- * excludes already configured - `files.exclude` and `search.exclude` - so
- * `node_modules` and build output stay out without this extension keeping its
- * own opinion about what they are called. Passing `null` would be the
- * everything-included reading; the difference is worth the comment because the
- * two look alike and only one of them is bearable in a real repository.
+ * `undefined` for the exclude pattern is what asks VS Code to apply
+ * `files.exclude` - and only that: `search.exclude` is not applied, and
+ * neither is `.gitignore` (extHostWorkspace.ts hardcodes ignore files off for
+ * this call, behind an opt-in `search.experimental.useIgnoreFilesInFindFiles`;
+ * checked on main, 2026-09-28). So build output that is only gitignored, `.obj`
+ * and the like, is listed here while Quick Open hides it. Passing `null` would
+ * drop `files.exclude` as well; the two look alike and only one is bearable.
  */
 async function listFiles() {
   const started = Date.now();

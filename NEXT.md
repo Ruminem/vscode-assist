@@ -4,7 +4,7 @@
 프로젝트에서 하루 써봐도 안 거슬린다.
 
 **2026-09-28 밤, 둘째** — 여기까지 됨: `Alt+E` 에 순번 추적과 최근 칸 fuzzy 를 넣음(배포 전). 설계 검토에서 잰 것 — 이 저장소 약어 5종(`fs`·`da`·`ss`·`cn`·`readme`) 전부 원하는 파일이 1위, 키 하나당 점수 매기기가 2만 파일 15–38 ms·10만 파일 46–134 ms(정렬 뺀 값). VS Code 소스 `quickInputList.ts`(main)에서 입력 중엔 구분선을 아예 안 그리고 한 글자 입력은 위젯이 재정렬하는 것을 확인함. `sortByLabel` 은 stable `vscode.d.ts` 에 없지만 `extHostQuickOpen.ts` 의 setter 에 proposed 검사가 없고 `mainThreadQuickOpen.ts` 가 값을 그대로 복사함 — 그래서 `picker.sortByLabel = false` 를 `try` 로 감싸 넣었음 — 에디터에서는 안 돌려 봤음. `check-fuzzy` 최근 칸 검사 3건, 변이 둘(연속으로 되돌리기·경로까지 보기) 걸림.
-다음 할 것: 설치본에서 `Alt+E` 치고 구분선 확인. 글자를 치는 중에 **최근에 사용한 항목**·**파일 결과** 줄이 보이면 `sortByLabel` 이 먹은 것이고, 먹었으면 심볼 검색 창(`symbol-search.js`)에도 같은 줄을 넣을 것(한 글자 입력 재정렬이 거기도 있음). 그다음 업무 PC 에서 추적 켜고 며칠 쓰기 — `file search: "…" chose #N of recent|files` 와 `dismissed` 줄을 모아 순번 분포를 보고 그때 순서를 고침. 같은 파일에서 `N files` 줄(2만 잘림 여부)과 첫 열기 시간도 읽을 것.
+다음 할 것: 설치본에서 `Alt+E` 치고 구분선 확인. 글자를 치는 중에 **최근에 사용한 항목**·**파일 결과** 줄이 보이면 `sortByLabel` 이 먹은 것(심볼 검색 창에도 같은 줄을 넣어 뒀음). `.obj` 가 뜨는 것은 `findFiles` 가 `files.exclude` 만 보고 `search.exclude`·`.gitignore` 를 안 봐서임(`extHostWorkspace.ts` 로 확인) — `search.exclude` 를 읽어 제외 glob 으로 넘기는 열댓 줄이면 Quick Open 과 같은 설정을 보게 됨. 할지는 물어보고 정함. 그다음 업무 PC 에서 추적 켜고 며칠 쓰기 — `file search: "…" chose #N of recent|files` 와 `dismissed` 줄을 모아 순번 분포를 보고 그때 순서를 고침. 같은 파일에서 `N files` 줄(2만 잘림 여부)과 첫 열기 시간도 읽을 것.
 막힌 것: 없음.
 
 **2026-09-28 밤** — 여기까지 됨: `Alt+E` 순서를 Quick Open 구조로 바꿈(배포 전). `Shift+Alt+O` 가 매끄럽다는 말에 VS Code 소스(`fuzzyScorer.ts`·`anythingQuickAccess.ts`)를 읽어 보니 비결은 두 칸이었음 — 최근 연 파일은 연속 문자열·이름만, 나머지는 fuzzy. 거기에 이름 접두 > 이름 안 > 경로 세 단계, 띄어쓰기 조각, 동점이면 짧은 경로. 글자 점수(`fuzzy.js`)는 심볼 검색과 같이 쓰는 것이라 안 건드림. 에디터 기록 API 가 없어서(`vscode.d.ts` 에 없음) 최근 목록은 직접 쌓음. `check-fuzzy` 에 10건, 변이 넷 전부 걸림. 가짜 `vscode` 로 창 흐름도 돌려 봤음.
