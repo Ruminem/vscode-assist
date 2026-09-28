@@ -3,6 +3,10 @@
 **끝났다의 정의** — `Alt+G` 한 번으로 선언부↔정의부를 왕복할 수 있고, 내 C++
 프로젝트에서 하루 써봐도 안 거슬린다.
 
+**2026-09-28 밤, 다섯째** — 여기까지 됨: `Alt+E` 매처를 위젯이 강조할 수 있는 꼴로 좁힘(`fuzzy.js` 의 셋째 인자 `anchored`). 스크린샷의 강조 없는 행(`sd`→`std.h`, `ckjs`→`package.json`·`Che[c][k]…[j][s]on`)이 왜 뜨는지 재 보니, 우리 매처는 순서만 맞으면 어디든 받는데 위젯(`filters.ts` 의 `matchesFuzzy`)은 연속 부분 문자열 아니면 첫 글자 단어 머리 + 이후 단어 머리·연속만 그림. 그 규칙을 옮긴 스크립트가 스크린샷 25행과 25/25 일치. 그래서 파일 검색만 그 규칙으로 맞추고(심볼 검색 `ce`→`Circle` 은 그대로), 슬래시 든 조각은 느슨하게 둠(`feat/dot`). 잃은 것: 자음 약어(`fzy`·`hngl`). 그래도 강조 없이 뜨는 것: 위젯 휴리스틱이 거부하는 이름(앞 60자에 숫자 20% 이상·60자 초과 — `build/.cmake/api/v1/reply/target-*.json` 이 그것), 폴더+이름에 걸친 매치(`fda`), 띄어쓰기 조각, 한글 입력(일부러 안 고침 — 넷째 항목). `check-fuzzy` 12건 추가, 변이 셋 걸림. 에디터에서는 안 봤음.
+다음 할 것: 설치본에서 `ckjs`·`sd` 다시 보기. 강조 없는 행이 `target-*` 류만 남아야 함 — 그건 업무 트리 쪽 `.gitignore` 에 `_oss/cpp-run-test/build/`·`fmt/build-a`·`spdlog/build-map` 을 넣으면 Quick Open 과 같이 빠짐. 그다음 업무 PC 추적 수집, 그다음 버전 올려 CHANGELOG 와 함께 배포 — main 에 배포 안 된 커밋이 쌓이는 중.
+막힌 것: 없음.
+
 **2026-09-28 밤, 넷째** — 여기까지 됨: `Alt+E` 목록을 `findFiles` 대신 번들 ripgrep(`text-guess.js` 의 `ripgrep()` 을 내보냄)으로 긁게 바꿈 — Quick Open 의 `getRgArgs` 플래그 그대로(`--files --hidden --no-require-git --no-config`, `files.exclude`·`search.exclude` 의 `true` 키를 `-g '!…'` 로 루트에 고정, `search.use*IgnoreFiles` 셋과 `followSymlinks`). 그래서 `.gitignore`·`.git/info/exclude` 가 먹고, 확장자 40개 손 목록(`BUILD_OUTPUT`)은 지웠음 — "문제 날 때마다 하나씩" 이라는 지적이 맞았음. 실측: 이 저장소 51개(`.cache`·`.claude/worktrees` 0개, `.github`·`.vscode` 는 남음), rg 한 번 약 125ms. 2만 1천 개 폴더에서 2만 개에서 잘리고 297ms. 잘못된 glob 은 rg 종료 코드 2 → 빈 목록 + trace 한 줄. `check-fuzzy` 의 `rgArgs` 7건, 변이 셋 걸림. 위젯 강조는 잘 보인다고 확인받음. **한글 입력(`차ㅓㄴ`)은 찾히지만 강조가 안 됨** — 위젯이 입력창 글자 그대로를 라벨과 맞춰서. 유일한 길은 입력창 값을 `ckjs` 로 바꿔 쓰는 것인데, IME 조합 중 값을 바꿨을 때의 동작을 못 쟀고 한국어 파일 이름 매치가 죽어서 안 함.
 다음 할 것: 설치본에서 `sd`·`ckjs` 다시 보기. 업무 트리에서 `.obj`·`build/`·`.cache` 가 남으면 그 프로젝트 `.gitignore` 에 없는 것 — 거기 넣으면 Quick Open 과 같이 빠짐. 그다음 업무 PC 추적 수집(둘째 항목), 그다음 버전 올려 CHANGELOG 와 함께 배포 — main 에 배포 안 된 커밋이 쌓이는 중.
 막힌 것: 없음.

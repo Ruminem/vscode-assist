@@ -39,13 +39,20 @@ function startsWord(text, i) {
  * has to say so. One pass per query character keeps the best score for every
  * place that character could land, which is length of query times length of
  * name - small at symbol-name sizes. The positions of that fit come back too,
- * though nothing draws them: a quick pick highlights what its own matcher finds
- * (file-search.js says what that covers), and the bold look-alike letters this
- * file used to draw were too faint to read.
- * @param {string} query @param {string} name
+ * though nothing draws them: a quick pick highlights what its own matcher finds,
+ * and the bold look-alike letters this file used to draw were too faint to read.
+ *
+ * `anchored` narrows the fits to the ones that matcher can draw (filters.ts
+ * matchesFuzzy, 2026-09-28): the query as one run wherever it sits, or else a
+ * first letter that starts a word and every next letter either starting a word
+ * or following the one before. The file search asks for this, so that no row it
+ * shows is one the picker leaves unhighlighted - `ckjs` no longer reaches
+ * package.json through pa[ck]age.[js]on. The symbol search does not: `ce` on
+ * Circle is the match it exists for, highlight or not.
+ * @param {string} query @param {string} name @param {boolean} [anchored]
  * @returns {{score: number, positions: number[]} | null}
  */
-function fuzzyMatch(query, name) {
+function fuzzyMatch(query, name, anchored = false) {
   const q = query.toLowerCase();
   const t = name.toLowerCase();
   const n = t.length;
@@ -71,19 +78,22 @@ function fuzzyMatch(query, name) {
         apartAt = i - 2;
       }
       if (t[i] !== q[j]) continue;
-      const gain = 1 + (startsWord(name, i) ? 2 : 0);
+      const starts = startsWord(name, i);
+      const gain = 1 + (starts ? 2 : 0);
       if (j === 0) {
-        cur[i] = gain;
+        if (!anchored || starts) cur[i] = gain;
         continue;
       }
       const run = i >= 1 ? prev[i - 1] + 3 : -Infinity;
-      if (run === -Infinity && apart === -Infinity) continue;
+      // Anchored, a letter that does not start a word can only extend a run.
+      const jump = anchored && !starts ? -Infinity : apart;
+      if (run === -Infinity && jump === -Infinity) continue;
       // A tie goes to the run.
-      if (run >= apart) {
+      if (run >= jump) {
         cur[i] = run + gain;
         link[i] = i - 1;
       } else {
-        cur[i] = apart + gain;
+        cur[i] = jump + gain;
         link[i] = apartAt;
       }
     }
@@ -93,7 +103,16 @@ function fuzzyMatch(query, name) {
 
   let end = -1;
   for (let i = 0; i < n; i++) if (prev[i] > -Infinity && (end < 0 || prev[i] > prev[end])) end = i;
-  if (end < 0) return null;
+  if (end < 0) {
+    // The one fit the anchoring skipped that the picker still draws: the query
+    // as a run starting mid-word, `sets` in CMakePresets.json. Scored as the
+    // pass above would have.
+    const at = anchored ? t.indexOf(q) : -1;
+    if (at < 0) return null;
+    const positions = Array.from(q, (_, k) => at + k);
+    const score = positions.reduce((sum, i) => sum + 1 + (startsWord(name, i) ? 2 : 0), 3 * (q.length - 1));
+    return { score: score - name.length / 100, positions };
+  }
 
   const positions = new Array(q.length);
   for (let j = q.length - 1, i = end; j >= 0; j--) {

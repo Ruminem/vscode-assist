@@ -80,6 +80,15 @@ check('beginnings beat middles', ranks('fda', 'features/dot-arrow.js', 'xfxxxdxx
 check('the extension is a beginning', ranks('fj', 'features/a.js', 'ffffffffj'), true);
 check('a shorter path wins a tie', ranks('ext', 'extension.js', 'extension.js.map'), true);
 
+// Anchored: only the fits the quick pick highlights. The symbol search stays
+// loose - `ce` on Circle is what it exists for.
+check('loose, ce finds Circle', score('ce', 'Circle') !== null, true);
+check('anchored, ce does not', fuzzyMatch('ce', 'Circle', true), null);
+check('anchored, the first letter has to start a word', fuzzyMatch('ej', 'check-keys.json', true), null);
+check('anchored, a later letter starts a word or follows the last', fuzzyMatch('ckjs', 'check-keys.js', true) !== null, true);
+check('anchored, a run may start mid-word', fuzzyMatch('sets', 'CMakePresets.json', true) !== null, true);
+check('anchored, a mid-word run ranks below one at a word start', fuzzyMatch('sets', 'x-sets', true).score > fuzzyMatch('sets', 'xxsets', true).score, true);
+
 check('a slash starts a word', startsWord('a/b', 2), true);
 check('a dash starts a word', startsWord('a-b', 2), true);
 check('a dot starts a word', startsWord('a.b', 2), true);
@@ -114,20 +123,29 @@ const above = (query, first, second) => rank(query, first) > rank(query, second)
 // old whole-path scoring ranks it the other way - a pair both orderings agree
 // on pins nothing.
 check('a name that starts with the query beats a name that holds it', above('arrow', 'z/arrow-key.js', 'dot-arrow.js'), true);
-// Scored as one string, `features/dot-arrow.js` wins this: three word starts
-// against one word start and a run.
-check('a name that holds the letters beats folders that hold them', above('fda', 'zzz/fdxa.js', 'features/dot-arrow.js'), true);
+// Scored as one string, `fda-folder/x.js` wins this: a word start and a run
+// against three word starts.
+check('a name that holds the letters beats folders that hold them', above('fda', 'zzz/f-d-a.js', 'fda-folder/x.js'), true);
 check('the folders are still searched when the name misses', rank('fda', 'features/dot-arrow.js') !== null, true);
 check('a slash sends the piece to the path', rank('features/dot', 'features/dot-arrow.js') !== null, true);
+check('a piece with a slash is matched loosely, its slash landing anywhere', rank('feat/dot', 'features/dot-arrow.js') !== null, true);
+
+// The rows the screenshots showed unhighlighted, each a fit the picker cannot
+// draw: letters in order but not at word starts nor in a run.
+check('sd does not reach std.h', rank('sd', 'x/std.h'), null);
+check('ckjs does not reach package.json', rank('ckjs', 'x/package.json'), null);
+check('ckjs does not reach a name through Che[c][k]…[j][s]on', rank('ckjs', 'x/target-NightlyMemCheck-Debug-86d3614bfbe55db1eb46.json'), null);
+check('ckjs still reaches check-keys.js', rank('ckjs', 'tools/check-keys.js') !== null, true);
+check('the consonant skeleton is what this gives up', rank('fzy', 'features/fuzzy.js'), null);
 
 // Pieces split on spaces, all required, in any order.
 check('pieces match in any order', rank('js dot', 'features/dot-arrow.js') !== null, true);
 check('every piece has to match', rank('dot zzz', 'features/dot-arrow.js'), null);
 check('a Hangul piece is read through its keys', rank('애 ㅓㄴ', 'features/dot-arrow.js') !== null, true);
 
-// The recent section: as loose as the rest, but the name alone - unless the
+// The recent section: matched like the rest, but the name alone - unless the
 // piece is a path.
-check('a recent file matches scattered letters in its name', rank('dar', 'features/dot-arrow.js', true) !== null, true);
+check('a recent file matches an abbreviation of its name', rank('dar', 'features/dot-arrow.js', true) !== null, true);
 check('a recent file does not match through its folder', rank('feat', 'features/dot-arrow.js', true), null);
 check('a recent file matches a piece with a slash by its path', rank('feat/dot', 'features/dot-arrow.js', true) !== null, true);
 

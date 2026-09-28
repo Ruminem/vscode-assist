@@ -260,20 +260,25 @@ line should get.
 
 ## Searching files
 
-`Alt+E` opens a file search of this extension's own. Type any letters of the
-path in order - `fda` reaches `features/dot-arrow.js`. Each row puts the file
-name first and its folder after, as VS Code's own picker does, so a deep path
-clips the folder and never the name. The highlights are VS Code's own, in the
-name and the folder alike - a prefix, word starts (`ckjs` on `check-keys.js`)
-or a run; a match that lands elsewhere, or that is typed through a Korean
-keyboard, is listed without one.
+`Alt+E` opens a file search of this extension's own. Type the letters of the
+path in order, each one starting a word or following the letter before - `fda`
+reaches `features/dot-arrow.js`, `ckjs` reaches `check-keys.js` - or a whole
+run from anywhere, `sets` in `CMakePresets.json`. Each row puts the file name
+first and its folder after, as VS Code's own picker does, so a deep path clips
+the folder and never the name. The highlights are VS Code's own, and the rule
+above is exactly what its picker can highlight, so a row without one is rare:
+a name its matcher refuses (a fifth or more digits, or past 60 characters), a
+match that runs from the folder into the name, a query with spaces in it, or
+one typed through a Korean keyboard. What the rule gives up is the consonant
+skeleton - `fzy` no longer reaches `fuzzy.js` here, though Quick Open still
+takes it.
 
 **The list is ordered the way VS Code's own picker orders it.** Before you type,
 it shows the files you opened recently in this workspace, newest first, followed
 by whatever else is open in a tab; the file you are in is left out, so `Alt+E`
 `Enter` steps back to the previous one. Once you type, those recent files stay
-on top under **recently opened**, matched as loosely as the rest but by the
-file name alone - a folder name would match most of them at once. VS Code's own
+on top under **recently opened**, matched like the rest but by the file name
+alone - a folder name would match most of them at once. VS Code's own
 picker wants the letters adjacent there; this one does not, so the file you
 just left still comes first when you type it as an abbreviation. Every other
 file follows under **file results**. There, a hit in the file name always ranks above a hit that

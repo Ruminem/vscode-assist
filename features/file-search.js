@@ -149,8 +149,17 @@ const nameStart = (path) => Math.max(path.lastIndexOf('/'), path.lastIndexOf('\\
  * The file name is tried first, and a hit there lands in a tier above anything
  * the whole path can score. Only when the name misses is the path tried, so
  * `fda` still reaches `features/dot-arrow.js` by its folder - it just no longer
- * outranks a file whose own name holds the letters. A piece with a slash in it
- * is a path, and goes straight to the path.
+ * outranks a file whose own name holds the letters.
+ *
+ * Both are the anchored kind of match - letters at word starts or in a run -
+ * because those are the only fits the picker highlights (searchFiles says why
+ * it cannot be told ours). A row the picker would show unmarked is a row the
+ * person cannot tell from noise, so it is not shown at all. What that gives up
+ * is the consonant skeleton, `fzy` for fuzzy.js; Quick Open still takes it.
+ *
+ * A piece with a slash in it is a path, and goes straight to the path, matched
+ * the loose way: the picker cannot mark a folder and a name together whatever
+ * the fit, and `feat/dot` needs its slash to land after an abbreviated folder.
  *
  * `nameOnly` is for the recently opened files: a folder name would match most
  * of them at once (`feat` against fifty files under `features/`), and they are
@@ -160,17 +169,15 @@ const nameStart = (path) => Math.max(path.lastIndexOf('/'), path.lastIndexOf('\\
  * @param {string} piece @param {string} path @param {boolean} nameOnly
  */
 function matchPiece(piece, path, nameOnly) {
-  if (!/[\\/]/.test(piece)) {
-    const cut = nameStart(path);
-    const name = path.slice(cut);
-    const hit = fuzzyMatch(piece, name);
-    if (hit) {
-      const tier = name.toLowerCase().startsWith(piece.toLowerCase()) ? NAME_PREFIX : IN_NAME;
-      return { score: tier + hit.score, positions: hit.positions.map((i) => i + cut) };
-    }
-    if (nameOnly) return null;
+  if (/[\\/]/.test(piece)) return fuzzyMatch(piece, path);
+  const cut = nameStart(path);
+  const name = path.slice(cut);
+  const hit = fuzzyMatch(piece, name, true);
+  if (hit) {
+    const tier = name.toLowerCase().startsWith(piece.toLowerCase()) ? NAME_PREFIX : IN_NAME;
+    return { score: tier + hit.score, positions: hit.positions.map((i) => i + cut) };
   }
-  return fuzzyMatch(piece, path);
+  return nameOnly ? null : fuzzyMatch(piece, path, true);
 }
 
 /**
@@ -286,9 +293,12 @@ async function searchFiles() {
   // Code's own pickers. An extension cannot hand over letters of its own -
   // TransferQuickPickItem carries no highlights (extHostQuickOpen.ts,
   // 2026-09-28) - and the bold look-alike glyphs the labels used to carry were
-  // too faint to read. So letters that fall elsewhere, a Hangul reading of the
-  // query, and a match split across folder and name get no highlight; the row
-  // still shows, in this order.
+  // too faint to read. So matchPiece only makes the fits the widget can draw.
+  // What still shows unmarked: a Hangul reading of the query, a match split
+  // across folder and name, the pieces of a query with spaces in it, and names
+  // the widget's own heuristics refuse - a fifth or more digits in the first 60
+  // characters, or letters past the 60th (matchesCamelCase in filters.ts; the
+  // build/.cmake/api reply files are the ones that showed).
   picker.matchOnDescription = true;
   picker.matchOnDetail = false;
   // Without this the widget re-sorts the rows by its own label match while
