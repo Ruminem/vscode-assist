@@ -1,5 +1,15 @@
 # Changelog
 
+## 0.6.1 — 2026-09-29
+
+- `Alt+E` counts word starts the way VS Code's picker does: after a space or any punctuation, at a digit, and at every capital. `ckc` now finds `check-keys copy.js`, `rd` finds `README.md` and `f2` finds `file2.txt`. Names the picker does not read as words, such as `CODE_OF_CONDUCT.md`, match only a run of letters, so every row shown is one VS Code highlights.
+- Files deleted or renamed since you opened them - in VS Code, a terminal or git - no longer show under **recently opened**.
+
+**한국어**
+
+- `Alt+E` 가 VS Code 창과 같은 자리를 단어 머리로 봄 — 띄어쓰기나 문장 부호 뒤, 숫자, 대문자. 이제 `ckc` 로 `check-keys copy.js` 를, `rd` 로 `README.md` 를, `f2` 로 `file2.txt` 를 찾음. `CODE_OF_CONDUCT.md` 처럼 그 창이 단어로 안 읽는 이름은 붙은 글자로만 맞으므로, 뜨는 행은 전부 VS Code 가 강조함.
+- 연 뒤에 지워지거나 이름이 바뀐 파일은 — VS Code 에서든 터미널이나 git 에서든 — **최근에 사용한 항목** 에 더는 안 뜸.
+
 ## 0.6.0 — 2026-09-28
 
 - `Alt+E` lists the files you opened recently first, newest first, and leaves out the one you are in - so `Alt+E` `Enter` steps back to the previous file. Below them, a hit in the file name ranks above one that needs the folders, and a name that starts with what you typed ranks above both. Spaces split the query into pieces that must all match, in any order.
