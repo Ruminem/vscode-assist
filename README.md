@@ -9,7 +9,7 @@ Navigation shortcuts VS Code does not ship, bound to keys VS Code does not use.
 | `Alt+G` / `Alt+D` | Go to the definition. Press it on the definition and it goes back to the declaration. |
 | `Ctrl+Shift+↓` / `Ctrl+Shift+↑` | Jump to the next / previous function in this file. |
 | `Shift+Alt+S` | Search symbols in the workspace, with fuzzy matching you can switch off. |
-| `Alt+E` | Search files in the workspace, and find them through a Korean keyboard too. |
+| `Alt+E` | Search files in the workspace, recently opened ones first, and find them through a Korean keyboard too. |
 | `Ctrl+Alt+P` | Attach the debugger to a running process. |
 | `Shift+Alt+P` | Attach again to the process attached last. |
 | `Shift+Alt+O` | Open a file anywhere in the workspace. |
@@ -266,6 +266,22 @@ matched are drawn in bold. Each row puts the file name first and its folder
 after, as VS Code's own picker does, so a deep path clips the folder and never
 the name.
 
+**The list is ordered the way VS Code's own picker orders it.** Before you type,
+it shows the files you opened recently in this workspace, newest first, followed
+by whatever else is open in a tab; the file you are in is left out, so `Alt+E`
+`Enter` steps back to the previous one. Once you type, those recent files stay
+on top under **recently opened**, but only when the letters you typed sit next
+to each other in the file name - they are few and already known, so a loose
+match there would be noise. Every other file follows under **file results**,
+matched loosely. There, a hit in the file name always ranks above a hit that
+needs the folders, and a name that starts with what you typed ranks above both;
+`fda` still reaches `features/dot-arrow.js` by its folders, it just no longer
+beats a file whose own name holds those letters. Spaces split the query into
+pieces that must all match, in any order - `dot js`. VS Code does not let an
+extension read its editor history, so this one keeps its own list of the last
+50 files per workspace; it starts empty on a new install, which is why the open
+tabs are added below it.
+
 **It also finds files through a Korean keyboard.** Code is written in English
 and file names follow it, but an input method left switched on does not know
 that: reaching for `abcd` puts `뮻ㅇ` in the box, because the keys land as jamo
@@ -279,8 +295,8 @@ matches as itself.
 a hedge: an extension cannot read what is typed into that box, cannot replace
 the matcher behind it, and can only open it. So this is a second key rather than
 a replacement - keys are added here, not taken - and VS Code's picker keeps what
-it is better at: `:42` to jump to a line, `@` for symbols, and the recently
-opened files it offers before you type anything. This window has none of those.
+it is better at: `:42` to jump to a line, `@` for symbols, and a history that
+reaches back further than this window's own. This window has none of those.
 
 ## When it feels slow
 

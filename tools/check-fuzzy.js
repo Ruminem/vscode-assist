@@ -101,5 +101,34 @@ const query = 'ㄹㅇㅁ';
 check('the keys behind ㄹㅇㅁ', toKeys(query), 'fda');
 check('a Hangul query reaches an English path', readings(query).some((r) => fuzzyMatch(r, 'features/dot-arrow.js')), true);
 
+// --- how the file search orders a whole path ----------------------------------
+
+const { matchPath } = require(path.join(ROOT, 'features', 'file-search.js'));
+const rank = (query, target, contiguous = false) => {
+  const match = matchPath(query, target, contiguous);
+  return match ? match.score : null;
+};
+const above = (query, first, second) => rank(query, first) > rank(query, second);
+
+// The Quick Open ordering, in its three tiers. Each pair is chosen so that the
+// old whole-path scoring ranks it the other way - a pair both orderings agree
+// on pins nothing.
+check('a name that starts with the query beats a name that holds it', above('arrow', 'z/arrow-key.js', 'dot-arrow.js'), true);
+// Scored as one string, `features/dot-arrow.js` wins this: three word starts
+// against one word start and a run.
+check('a name that holds the letters beats folders that hold them', above('fda', 'zzz/fdxa.js', 'features/dot-arrow.js'), true);
+check('the folders are still searched when the name misses', rank('fda', 'features/dot-arrow.js') !== null, true);
+check('a slash sends the piece to the path', rank('features/dot', 'features/dot-arrow.js') !== null, true);
+
+// Pieces split on spaces, all required, in any order.
+check('pieces match in any order', rank('js dot', 'features/dot-arrow.js') !== null, true);
+check('every piece has to match', rank('dot zzz', 'features/dot-arrow.js'), null);
+check('a Hangul piece is read through its keys', rank('애 ㅓㄴ', 'features/dot-arrow.js') !== null, true);
+
+// The recent section: adjacent letters, in the name only.
+check('a recent file matches with adjacent letters', rank('arrow', 'features/dot-arrow.js', true) !== null, true);
+check('a recent file does not match scattered letters', rank('dar', 'features/dot-arrow.js', true), null);
+check('a recent file does not match through its folder', rank('feat', 'features/dot-arrow.js', true), null);
+
 console.log(failed ? `\n${failed} failed` : '\nall passed');
 process.exit(failed ? 1 : 0);
