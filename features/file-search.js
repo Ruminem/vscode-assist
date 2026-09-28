@@ -2,9 +2,11 @@
 'use strict';
 
 const vscode = require('vscode');
+const { spawn } = require('child_process');
 const { trace, since } = require('./trace');
 const { fuzzyMatch } = require('./fuzzy');
 const { readings } = require('./hangul');
+const { ripgrep } = require('./text-guess');
 
 // A list longer than this is not being read, it is being scrolled.
 const MAX_ITEMS = 200;
@@ -28,58 +30,108 @@ const NAME_PREFIX = 2e6;
 // the list was cut so that a missing file is never a silent one.
 const MAX_FILES = 20000;
 
-// Build output nobody opens in an editor: what the compiler, the linker, Visual
-// Studio and the packagers leave behind. VS Code's own picker lists these; this
-// one does not, because an `.obj` beside every `.cpp` doubles the list and eats
-// the cap above. Text stays whatever it is - `.md`, `.log`, `.map` - and so do
-// images, which VS Code opens. `search.exclude` is where more goes.
-// `.d` on its own is not here, it is D's source extension: only the dependency
-// file the compiler writes beside an object (`.obj.d`, `.o.d`) is.
-// ponytail: a fixed list; a setting of its own only if someone needs one of
-// these listed.
-const BUILD_OUTPUT = [
-  'obj', 'o', 'a', 'lib', 'so', 'dylib', 'dll', 'exe', 'pdb', 'ilk', 'idb', 'exp', 'pch', 'ipch', 'res',
-  'obj.d', 'o.d', 'iobj', 'ipdb', 'gcda', 'gcno',
-  'tlog', 'lastbuildstate', 'sbr', 'bsc', 'ncb', 'sdf', 'suo', 'opendb', 'idx',
-  'class', 'jar', 'pyc', 'pyo', 'wasm',
-  'zip', '7z', 'tar', 'gz', 'rar',
-];
-
 /**
- * The exclude pattern for `findFiles`: `search.exclude`, which that call does
- * not apply on its own, and the build output above, as one brace group.
- * `files.exclude` is not repeated here - VS Code applies it whenever the
- * pattern is not null (extHostWorkspace.ts, checked on main 2026-09-28).
+ * ripgrep's arguments for listing one folder: what Quick Open hands it
+ * (ripgrepFileSearch.ts, getRgArgs, main 2026-09-28), less what a plain
+ * listing has no use for. So the list here is the list there - hidden files
+ * in; `.gitignore`, `.ignore` and `.git/info/exclude` honoured, which is what
+ * keeps build output and a worktree under `.claude/` out; the three
+ * `search.use*IgnoreFiles` settings and `search.followSymlinks` read the same
+ * way. What counts as build output is the project's own `.gitignore` to say,
+ * not a list kept here.
  *
- * Entries turned off (`false`) are skipped, and so are the two shapes one glob
- * cannot hold: `{ "when": ... }` sibling rules, and keys with a brace group of
- * their own, because glob.ts closes a group at the first `}` it meets (line 156
- * on main, 2026-09-28) - nesting would break every pattern in the group.
- * Folder-level overrides of `search.exclude` in a multi-root window are not
- * read; the window's value is.
- * @param {Record<string, unknown> | undefined} searchExclude
+ * Both exclude settings are turned into globs, since nothing applies them to a
+ * binary run by hand. A `{ "when": ... }` sibling rule is skipped, and a key
+ * that starts with neither `**` nor `/` is anchored to the folder root, as VS
+ * Code anchors it - to ripgrep a bare `build` would mean "anywhere".
+ * @param {Record<string, unknown>} exclude `files.exclude` and `search.exclude`, merged
+ * @param {{useIgnoreFiles: boolean, useParentIgnoreFiles: boolean, useGlobalIgnoreFiles: boolean, followSymlinks: boolean}} search
  */
-function excludeGlob(searchExclude) {
-  const globs = Object.keys(searchExclude || {}).filter((key) => searchExclude[key] === true && !key.includes('{'));
-  return `{${[...globs, ...BUILD_OUTPUT.map((ext) => `**/*.${ext}`)].join(',')}}`;
+function rgArgs(exclude, search) {
+  const args = ['--files', '--hidden', '--no-require-git', '--no-config'];
+  for (const key of Object.keys(exclude)) {
+    if (exclude[key] !== true) continue;
+    const glob = key.replace(/[\\/]+$/, '');
+    args.push('-g', `!${/^(\*\*|\/)/.test(glob) ? glob : `/${glob}`}`);
+  }
+  if (!search.useIgnoreFiles) args.push('--no-ignore');
+  else if (!search.useParentIgnoreFiles) args.push('--no-ignore-parent');
+  if (!search.useGlobalIgnoreFiles) args.push('--no-ignore-global');
+  if (search.followSymlinks) args.push('--follow');
+  return args;
 }
 
 /**
- * Every file in the workspace, as paths to match against.
- *
- * `.gitignore` is not read: extHostWorkspace.ts hardcodes ignore files off for
- * this call, behind the opt-in `search.experimental.useIgnoreFilesInFindFiles`
- * (checked on main, 2026-09-28). With that on, VS Code honours it here as well.
+ * One folder's files from ripgrep, relative to it, at most `limit` of them -
+ * read as they arrive and stopped the moment there are enough, since a monorepo
+ * lists far more than the cap. A ripgrep that fails (a glob it cannot parse,
+ * say) leaves its first line of complaint in the trace and nothing else.
+ * @param {string} rg @param {string[]} args @param {string} cwd @param {number} limit
+ * @returns {Promise<string[]>}
+ */
+function list(rg, args, cwd, limit) {
+  return new Promise((resolve) => {
+    const lines = [];
+    let rest = '';
+    let error = '';
+    let done = false;
+    const finish = () => {
+      if (done) return;
+      done = true;
+      if (error.trim()) trace(`file search: ripgrep: ${error.trim().split('\n')[0]}`);
+      resolve(lines.slice(0, limit));
+    };
+    const child = spawn(rg, args, { cwd, stdio: ['ignore', 'pipe', 'pipe'] });
+    child.stdout.setEncoding('utf8');
+    child.stdout.on('data', (chunk) => {
+      const parts = (rest + chunk).split('\n');
+      rest = parts.pop();
+      for (const part of parts) lines.push(part);
+      if (lines.length >= limit) child.kill();
+    });
+    child.stderr.setEncoding('utf8');
+    child.stderr.on('data', (chunk) => {
+      error += chunk;
+    });
+    child.on('error', (e) => {
+      error += e.message;
+      finish();
+    });
+    child.on('close', finish);
+  });
+}
+
+/**
+ * Every file in the workspace, as paths to match against - what Quick Open
+ * lists, from the ripgrep VS Code ships (text-guess.js finds it). The API for
+ * this, findFiles, reads neither `.gitignore` nor `search.exclude`
+ * (extHostWorkspace.ts, main 2026-09-28) and so listed every `.obj` under a
+ * build folder. Each root is listed with its own settings, which is where a
+ * multi-root window keeps folder-level excludes.
  */
 async function listFiles() {
   const started = Date.now();
-  const exclude = excludeGlob(vscode.workspace.getConfiguration('search').get('exclude'));
-  const uris = await vscode.workspace.findFiles('**/*', exclude, MAX_FILES);
-  const files = uris
-    // `true` keeps the folder name in front when the window has several roots,
-    // which is the only thing telling two same-named files apart there.
-    .map((uri) => ({ uri, path: vscode.workspace.asRelativePath(uri, true) }))
-    .sort((a, b) => a.path.localeCompare(b.path));
+  const rg = ripgrep();
+  if (!rg) trace(`file search: no ripgrep under ${vscode.env.appRoot}`);
+  const files = [];
+  for (const folder of vscode.workspace.workspaceFolders || []) {
+    if (!rg || files.length >= MAX_FILES) break;
+    const search = vscode.workspace.getConfiguration('search', folder.uri);
+    const exclude = { ...vscode.workspace.getConfiguration('files', folder.uri).get('exclude', {}), ...search.get('exclude', {}) };
+    const args = rgArgs(exclude, {
+      useIgnoreFiles: search.get('useIgnoreFiles', true),
+      useParentIgnoreFiles: search.get('useParentIgnoreFiles', false),
+      useGlobalIgnoreFiles: search.get('useGlobalIgnoreFiles', false),
+      followSymlinks: search.get('followSymlinks', true),
+    });
+    for (const rel of await list(rg, args, folder.uri.fsPath, MAX_FILES - files.length)) {
+      const uri = vscode.Uri.joinPath(folder.uri, rel);
+      // `true` keeps the folder name in front when the window has several roots,
+      // which is the only thing telling two same-named files apart there.
+      files.push({ uri, path: vscode.workspace.asRelativePath(uri, true) });
+    }
+  }
+  files.sort((a, b) => a.path.localeCompare(b.path));
   trace(`file search: ${files.length} files in ${since(started)}${files.length === MAX_FILES ? ' (capped)' : ''}`);
   return files;
 }
@@ -358,5 +410,5 @@ module.exports = {
   },
   // For tools/check-fuzzy.js.
   matchPath,
-  excludeGlob,
+  rgArgs,
 };

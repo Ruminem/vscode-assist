@@ -226,13 +226,12 @@ VS Code 기본 창은 여기서 글자가 붙어 있어야 하지만 이 창은 
 VS Code 가 확장에 에디터 기록을 안 보여 줘서 작업 영역마다 마지막 50개를 따로 기억함. 새로 깔면
 비어 있어서 그 아래에 열린 탭을 붙인 것임.
 
-**목록은 VS Code 기본 창보다 조금 좁음.** Quick Open 처럼 `files.exclude` 와 `search.exclude` 를
-따르고, 거기에 더해 편집기에서 열 일이 없는 빌드 산출물 — 오브젝트와 그 옆의 의존성 파일·라이브러리·
-실행 파일·디버그 DB·미리 컴파일된 헤더·인덱스 파일·바이트코드·압축 파일(`.obj`·`.obj.d`·`.o`·`.lib`·
-`.dll`·`.exe`·`.pdb`·`.pch`·`.idx`·`.class`·`.pyc`·`.zip` 과 그 일가) — 을 뺌. 그 밖의 텍스트는
-무엇이든 남고(`.md`·`.log` 포함) VS Code 가 열어 주는 이미지도 남음. `.gitignore` 는 안 읽음 — VS Code 가 `search.experimental.useIgnoreFilesInFindFiles`
-를 켜기 전에는 확장에 그걸 안 보여 줘서, 무시된 빌드 폴더는 그 설정을 켜거나 `search.exclude` 에
-패턴을 넣기 전까지 여기 뜸. `search.exclude` 에 넣으면 VS Code 자체 검색에서도 같이 빠짐.
+**목록은 Quick Open 이 보는 그 목록임.** VS Code 가 번들한 ripgrep 을 Quick Open 과 같은 방식으로
+돌려 받음 — 숨김 파일은 들어가고, `files.exclude`·`search.exclude` 는 빠지고, `.gitignore`·`.ignore`·
+`.git/info/exclude` 를 따름. 그래서 프로젝트가 무시하는 빌드 폴더나 `.claude/` 아래 worktree 는 안 뜸.
+`search.use*IgnoreFiles` 세 설정과 `search.followSymlinks` 도 같은 식으로 읽음. 무엇이 빌드 산출물인지의
+목록은 여기 없음 — `.obj` 가 뜨면 Quick Open 에도 뜨는 것이고, 고칠 자리는 프로젝트의 `.gitignore` 임.
+`search.exclude` 에 넣어도 되는데, 그쪽은 VS Code 자체 검색에서도 같이 빠짐.
 
 **한글 자판으로 쳐도 찾힘.** 코드는 영어로 쓰고 파일 이름도 그걸 따라가는데, 켜 둔 입력기는
 그걸 모름. `abcd`를 치면 상자에 `뮻ㅇ`이 남음. 키가 자모로 떨어지고 자모가 음절로 합쳐지기

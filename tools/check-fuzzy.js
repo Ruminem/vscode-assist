@@ -103,7 +103,7 @@ check('a Hangul query reaches an English path', readings(query).some((r) => fuzz
 
 // --- how the file search orders a whole path ----------------------------------
 
-const { matchPath, excludeGlob } = require(path.join(ROOT, 'features', 'file-search.js'));
+const { matchPath, rgArgs } = require(path.join(ROOT, 'features', 'file-search.js'));
 const rank = (query, target, nameOnly = false) => {
   const match = matchPath(query, target, nameOnly);
   return match ? match.score : null;
@@ -133,25 +133,30 @@ check('a recent file matches a piece with a slash by its path', rank('feat/dot',
 
 // --- what the file list leaves out --------------------------------------------
 
-const glob = excludeGlob({
-  '**/node_modules': true,
-  '**/gone': false,
-  '**/*.js': { when: '$(basename).ts' },
-  '**/*.{a,b}': true,
-});
-const inner = glob.slice(1, -1);
-const parts = inner.split(',');
-check('search.exclude entries are passed on', parts.includes('**/node_modules'), true);
-check('an entry turned off is not', parts.includes('**/gone'), false);
-check('a sibling rule is left out', parts.includes('**/*.js'), false);
-check('build output is left out by default', parts.includes('**/*.obj') && parts.includes('**/*.pdb'), true);
-check('so is the dependency file beside an object', parts.includes('**/*.obj.d') && parts.includes('**/*.o.d'), true);
-// D source files end in `.d` too.
-check('but not every .d', parts.includes('**/*.d'), false);
-check('text stays - markdown is not build output', parts.some((p) => p.endsWith('.md') || p.endsWith('.txt') || p.endsWith('.log')), false);
-// glob.ts closes a brace group at the first `}`, so a group inside the group
-// would cut every pattern after it short.
-check('the group is one level deep', glob.startsWith('{') && glob.endsWith('}') && !inner.includes('{'), true);
+const quickOpen = { useIgnoreFiles: true, useParentIgnoreFiles: false, useGlobalIgnoreFiles: false, followSymlinks: true };
+const args = rgArgs(
+  {
+    '**/node_modules': true,
+    '**/gone': false,
+    '**/*.js': { when: '$(basename).ts' },
+    'build/': true,
+    '/abs': true,
+  },
+  quickOpen,
+);
+const globs = args.filter((_, i) => args[i - 1] === '-g');
+check('exclude entries are passed on', globs.includes('!**/node_modules'), true);
+check('an entry turned off is not', globs.includes('!**/gone'), false);
+check('a sibling rule is left out', globs.some((g) => g.includes('*.js')), false);
+// To ripgrep a bare `build` means "anywhere"; VS Code means "at the root".
+check('a plain key is anchored to the root, its slash trimmed', globs.includes('!/build'), true);
+check('an anchored key stays as it is', globs.includes('!/abs'), true);
+check(
+  "with Quick Open's settings, the folder's ignore files are read and parents' and the global one are not",
+  !args.includes('--no-ignore') && args.includes('--no-ignore-parent') && args.includes('--no-ignore-global'),
+  true,
+);
+check('search.useIgnoreFiles off turns them all off', rgArgs({}, { ...quickOpen, useIgnoreFiles: false }).includes('--no-ignore'), true);
 
 console.log(failed ? `\n${failed} failed` : '\nall passed');
 process.exit(failed ? 1 : 0);

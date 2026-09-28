@@ -285,17 +285,15 @@ extension read its editor history, so this one keeps its own list of the last
 50 files per workspace; it starts empty on a new install, which is why the open
 tabs are added below it.
 
-**What it lists is a little narrower than VS Code's own picker.** The list
-honours `files.exclude` and `search.exclude`, as Quick Open does, and on top of
-that leaves out build output nobody opens in an editor - object files and the
-dependency files beside them, libraries, executables, debug databases,
-precompiled headers, index files, bytecode and archives (`.obj`, `.obj.d`,
-`.o`, `.lib`, `.dll`, `.exe`, `.pdb`, `.pch`, `.idx`, `.class`, `.pyc`, `.zip`
-and their kin). Anything else that is text stays, `.md` and `.log` included,
-and so do images, which VS Code opens. `.gitignore` is not read: VS
-Code keeps it from extensions unless `search.experimental.useIgnoreFilesInFindFiles`
-is on, so an ignored build folder shows up here until that is set - or until its
-pattern is in `search.exclude`, which keeps it out of VS Code's own search too.
+**What it lists is what Quick Open lists.** The list comes from the ripgrep VS
+Code ships, run the way Quick Open runs it: hidden files in, `files.exclude`
+and `search.exclude` out, and `.gitignore`, `.ignore` and `.git/info/exclude`
+honoured - so a build folder the project ignores, or a worktree under
+`.claude/`, does not show. The three `search.use*IgnoreFiles` settings and
+`search.followSymlinks` are read the same way. There is no list here of what
+build output looks like: if an `.obj` shows up, it shows up in Quick Open too,
+and the place to fix it is the project's `.gitignore` - or `search.exclude`,
+which keeps it out of VS Code's own search as well.
 
 **It also finds files through a Korean keyboard.** Code is written in English
 and file names follow it, but an input method left switched on does not know

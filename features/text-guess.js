@@ -438,4 +438,4 @@ function similarity(guess, context, document, related, texts) {
   return Math.round((earned / possible) * 100);
 }
 
-module.exports = { indexProgress, isComplete, describeProgress, textGuesses, locateDatabase, rings, distance, byLikeness };
+module.exports = { indexProgress, isComplete, describeProgress, textGuesses, locateDatabase, rings, distance, byLikeness, ripgrep };
