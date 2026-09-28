@@ -16,3 +16,7 @@ fixtures/**
 # Notes for working on this repository, not for people installing it.
 CLAUDE.md
 NEXT.md
+
+# Session worktrees the desktop app checks out under the repository. A local
+# pack would otherwise bundle a second copy of everything above.
+.claude/**

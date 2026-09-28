@@ -103,7 +103,7 @@ check('a Hangul query reaches an English path', readings(query).some((r) => fuzz
 
 // --- how the file search orders a whole path ----------------------------------
 
-const { matchPath } = require(path.join(ROOT, 'features', 'file-search.js'));
+const { matchPath, excludeGlob } = require(path.join(ROOT, 'features', 'file-search.js'));
 const rank = (query, target, nameOnly = false) => {
   const match = matchPath(query, target, nameOnly);
   return match ? match.score : null;
@@ -130,6 +130,25 @@ check('a Hangul piece is read through its keys', rank('애 ㅓㄴ', 'features/do
 check('a recent file matches scattered letters in its name', rank('dar', 'features/dot-arrow.js', true) !== null, true);
 check('a recent file does not match through its folder', rank('feat', 'features/dot-arrow.js', true), null);
 check('a recent file matches a piece with a slash by its path', rank('feat/dot', 'features/dot-arrow.js', true) !== null, true);
+
+// --- what the file list leaves out --------------------------------------------
+
+const glob = excludeGlob({
+  '**/node_modules': true,
+  '**/gone': false,
+  '**/*.js': { when: '$(basename).ts' },
+  '**/*.{a,b}': true,
+});
+const inner = glob.slice(1, -1);
+const parts = inner.split(',');
+check('search.exclude entries are passed on', parts.includes('**/node_modules'), true);
+check('an entry turned off is not', parts.includes('**/gone'), false);
+check('a sibling rule is left out', parts.includes('**/*.js'), false);
+check('build output is left out by default', parts.includes('**/*.obj') && parts.includes('**/*.pdb'), true);
+check('text stays - markdown is not build output', parts.some((p) => p.endsWith('.md') || p.endsWith('.txt') || p.endsWith('.log')), false);
+// glob.ts closes a brace group at the first `}`, so a group inside the group
+// would cut every pattern after it short.
+check('the group is one level deep', glob.startsWith('{') && glob.endsWith('}') && !inner.includes('{'), true);
 
 console.log(failed ? `\n${failed} failed` : '\nall passed');
 process.exit(failed ? 1 : 0);

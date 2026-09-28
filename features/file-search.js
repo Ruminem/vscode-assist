@@ -28,20 +28,50 @@ const NAME_PREFIX = 2e6;
 // the list was cut so that a missing file is never a silent one.
 const MAX_FILES = 20000;
 
+// Build output nobody opens in an editor: what the compiler, the linker, Visual
+// Studio and the packagers leave behind. VS Code's own picker lists these; this
+// one does not, because an `.obj` beside every `.cpp` doubles the list and eats
+// the cap above. Text stays whatever it is - `.md`, `.log`, `.map` - and so do
+// images, which VS Code opens. `search.exclude` is where more goes.
+// ponytail: a fixed list; a setting of its own only if someone needs one of
+// these listed.
+const BUILD_OUTPUT = [
+  'obj', 'o', 'a', 'lib', 'so', 'dylib', 'dll', 'exe', 'pdb', 'ilk', 'idb', 'exp', 'pch', 'ipch', 'res',
+  'tlog', 'lastbuildstate', 'sbr', 'bsc', 'ncb', 'sdf', 'suo', 'opendb',
+  'class', 'jar', 'pyc', 'pyo', 'wasm',
+  'zip', '7z', 'tar', 'gz', 'rar',
+];
+
+/**
+ * The exclude pattern for `findFiles`: `search.exclude`, which that call does
+ * not apply on its own, and the build output above, as one brace group.
+ * `files.exclude` is not repeated here - VS Code applies it whenever the
+ * pattern is not null (extHostWorkspace.ts, checked on main 2026-09-28).
+ *
+ * Entries turned off (`false`) are skipped, and so are the two shapes one glob
+ * cannot hold: `{ "when": ... }` sibling rules, and keys with a brace group of
+ * their own, because glob.ts closes a group at the first `}` it meets (line 156
+ * on main, 2026-09-28) - nesting would break every pattern in the group.
+ * Folder-level overrides of `search.exclude` in a multi-root window are not
+ * read; the window's value is.
+ * @param {Record<string, unknown> | undefined} searchExclude
+ */
+function excludeGlob(searchExclude) {
+  const globs = Object.keys(searchExclude || {}).filter((key) => searchExclude[key] === true && !key.includes('{'));
+  return `{${[...globs, ...BUILD_OUTPUT.map((ext) => `**/*.${ext}`)].join(',')}}`;
+}
+
 /**
  * Every file in the workspace, as paths to match against.
  *
- * `undefined` for the exclude pattern is what asks VS Code to apply
- * `files.exclude` - and only that: `search.exclude` is not applied, and
- * neither is `.gitignore` (extHostWorkspace.ts hardcodes ignore files off for
- * this call, behind an opt-in `search.experimental.useIgnoreFilesInFindFiles`;
- * checked on main, 2026-09-28). So build output that is only gitignored, `.obj`
- * and the like, is listed here while Quick Open hides it. Passing `null` would
- * drop `files.exclude` as well; the two look alike and only one is bearable.
+ * `.gitignore` is not read: extHostWorkspace.ts hardcodes ignore files off for
+ * this call, behind the opt-in `search.experimental.useIgnoreFilesInFindFiles`
+ * (checked on main, 2026-09-28). With that on, VS Code honours it here as well.
  */
 async function listFiles() {
   const started = Date.now();
-  const uris = await vscode.workspace.findFiles('**/*', undefined, MAX_FILES);
+  const exclude = excludeGlob(vscode.workspace.getConfiguration('search').get('exclude'));
+  const uris = await vscode.workspace.findFiles('**/*', exclude, MAX_FILES);
   const files = uris
     // `true` keeps the folder name in front when the window has several roots,
     // which is the only thing telling two same-named files apart there.
@@ -319,4 +349,5 @@ module.exports = {
   },
   // For tools/check-fuzzy.js.
   matchPath,
+  excludeGlob,
 };

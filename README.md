@@ -283,6 +283,17 @@ extension read its editor history, so this one keeps its own list of the last
 50 files per workspace; it starts empty on a new install, which is why the open
 tabs are added below it.
 
+**What it lists is a little narrower than VS Code's own picker.** The list
+honours `files.exclude` and `search.exclude`, as Quick Open does, and on top of
+that leaves out build output nobody opens in an editor - object files,
+libraries, executables, debug databases, precompiled headers, bytecode and
+archives (`.obj`, `.o`, `.lib`, `.dll`, `.exe`, `.pdb`, `.pch`, `.class`,
+`.pyc`, `.zip` and their kin). Anything that is text stays, `.md` and `.log`
+included, and so do images, which VS Code opens. `.gitignore` is not read: VS
+Code keeps it from extensions unless `search.experimental.useIgnoreFilesInFindFiles`
+is on, so an ignored build folder shows up here until that is set - or until its
+pattern is in `search.exclude`, which keeps it out of VS Code's own search too.
+
 **It also finds files through a Korean keyboard.** Code is written in English
 and file names follow it, but an input method left switched on does not know
 that: reaching for `abcd` puts `뮻ㅇ` in the box, because the keys land as jamo
