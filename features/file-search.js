@@ -241,11 +241,13 @@ function remember(editor) {
  * in a tab - so a fresh install, with nothing remembered yet, still starts with
  * something. The file being edited is left out; opening it again goes nowhere,
  * and leaving it out makes `Alt+E` `Enter` a step back to the previous file.
- * ponytail: a deleted or renamed file stays listed until pushed out by newer
- * ones, and opening it shows VS Code's own error; drop it on
- * onDidDeleteFiles/onDidRenameFiles if that turns out to happen often.
+ *
+ * A file that is gone - deleted or renamed, in VS Code or outside it - is left
+ * out and forgotten. Each one is looked up on every opening rather than
+ * dropped on onDidDeleteFiles, which hears only what VS Code itself deleted,
+ * not a terminal or git.
  */
-function recentFiles() {
+async function recentFiles() {
   const active = vscode.window.activeTextEditor;
   const skip = active ? active.document.uri.toString() : '';
   const keys = [...recent];
@@ -254,12 +256,16 @@ function recentFiles() {
       if (tab.input instanceof vscode.TabInputText && isFile(tab.input.uri)) keys.push(tab.input.uri.toString());
     }
   }
-  return [...new Set(keys)]
-    .filter((key) => key !== skip)
-    .map((key) => {
-      const uri = vscode.Uri.parse(key);
-      return { uri, path: vscode.workspace.asRelativePath(uri, true) };
-    });
+  const files = [...new Set(keys)].filter((key) => key !== skip).map((key) => ({ key, uri: vscode.Uri.parse(key) }));
+  const there = await Promise.all(files.map(({ uri }) => vscode.workspace.fs.stat(uri).then(() => true, () => false)));
+  const gone = new Set(files.filter((_, i) => !there[i]).map(({ key }) => key));
+  if (gone.size) {
+    recent = recent.filter((key) => !gone.has(key));
+    if (store) store.update(RECENT_KEY, recent);
+  }
+  return files
+    .filter(({ key }) => !gone.has(key))
+    .map(({ uri }) => ({ uri, path: vscode.workspace.asRelativePath(uri, true) }));
 }
 
 /**
@@ -295,10 +301,7 @@ async function searchFiles() {
   // 2026-09-28) - and the bold look-alike glyphs the labels used to carry were
   // too faint to read. So matchPiece only makes the fits the widget can draw.
   // What still shows unmarked: a Hangul reading of the query, a match split
-  // across folder and name, the pieces of a query with spaces in it, and names
-  // the widget's own heuristics refuse - a fifth or more digits in the first 60
-  // characters, or letters past the 60th (matchesCamelCase in filters.ts; the
-  // build/.cmake/api reply files are the ones that showed).
+  // across folder and name, and the pieces of a query with spaces in it.
   picker.matchOnDescription = true;
   picker.matchOnDetail = false;
   // Without this the widget re-sorts the rows by its own label match while
@@ -326,8 +329,9 @@ async function searchFiles() {
   });
 
   // Read once per opening: the tabs and the history do not change while the
-  // picker is up, and it is on screen before the file list has loaded.
-  const recents = recentFiles();
+  // picker is up. Looking each one up takes milliseconds, well before the file
+  // list has loaded.
+  const recents = await recentFiles();
 
   /**
    * Two sections, as Quick Open has them: the recently opened files matched by
@@ -342,8 +346,8 @@ async function searchFiles() {
 
     if (!query) {
       picker.items = recents.length
-        ? recents.map((file, i) => row(file, [], 'recent', i + 1))
-        : files.slice(0, MAX_ITEMS).map((file, i) => row(file, [], 'all', i + 1));
+        ? recents.map((file, i) => row(file, 'recent', i + 1))
+        : files.slice(0, MAX_ITEMS).map((file, i) => row(file, 'all', i + 1));
       return;
     }
 
@@ -421,4 +425,5 @@ module.exports = {
   // For tools/check-fuzzy.js.
   matchPath,
   rgArgs,
+  recentFiles,
 };

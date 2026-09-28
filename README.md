@@ -293,7 +293,8 @@ beats a file whose own name holds those letters. Spaces split the query into
 pieces that must all match, in any order - `dot js`. VS Code does not let an
 extension read its editor history, so this one keeps its own list of the last
 50 files per workspace; it starts empty on a new install, which is why the open
-tabs are added below it.
+tabs are added below it. A file deleted or renamed since - in VS Code, a
+terminal or git - is looked up each time the search opens, and dropped.
 
 **What it lists is what Quick Open lists.** The list comes from the ripgrep VS
 Code ships, run the way Quick Open runs it: hidden files in, `files.exclude`

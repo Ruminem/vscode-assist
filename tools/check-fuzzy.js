@@ -18,10 +18,11 @@
 const path = require('path');
 const Module = require('module');
 
-// features/fuzzy.js has no vscode import, but hangul.js is required beside it
-// in the feature, so the stub stays for symmetry and for anything added later.
+// file-search.js imports vscode; only the recent section's check at the end
+// calls into it, and fills in what it needs.
+const vscode = {};
 const load = Module._load;
-Module._load = (request, parent, isMain) => (request === 'vscode' ? {} : load(request, parent, isMain));
+Module._load = (request, parent, isMain) => (request === 'vscode' ? vscode : load(request, parent, isMain));
 
 const ROOT = path.join(__dirname, '..');
 const { toKeys, hasHangul, readings } = require(path.join(ROOT, 'features', 'hangul.js'));
@@ -185,5 +186,24 @@ check(
 );
 check('search.useIgnoreFiles off turns them all off', rgArgs({}, { ...quickOpen, useIgnoreFiles: false }).includes('--no-ignore'), true);
 
-console.log(failed ? `\n${failed} failed` : '\nall passed');
-process.exit(failed ? 1 : 0);
+// --- the recent section forgets files that are gone ---------------------------
+
+const { recentFiles, activate } = require(path.join(ROOT, 'features', 'file-search.js'));
+const onDisk = new Set(['file:///w/kept.js']);
+Object.assign(vscode, {
+  Uri: { parse: (key) => ({ key, toString: () => key }) },
+  window: { activeTextEditor: undefined, tabGroups: { all: [] }, onDidChangeActiveTextEditor: () => ({}) },
+  workspace: {
+    fs: { stat: (uri) => (onDisk.has(uri.key) ? Promise.resolve({}) : Promise.reject(new Error('gone'))) },
+    asRelativePath: (uri) => uri.key.slice('file:///w/'.length),
+  },
+});
+let stored = ['file:///w/kept.js', 'file:///w/deleted.js'];
+activate({ workspaceState: { get: () => stored, update: (_, value) => (stored = value) }, subscriptions: [] });
+
+recentFiles().then((files) => {
+  check('a deleted file leaves the recent section', files.map((file) => file.path), ['kept.js']);
+  check('and the history it was remembered in', stored, ['file:///w/kept.js']);
+  console.log(failed ? `\n${failed} failed` : '\nall passed');
+  process.exit(failed ? 1 : 0);
+});
