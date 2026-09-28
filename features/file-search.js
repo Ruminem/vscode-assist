@@ -200,6 +200,19 @@ async function searchFiles() {
   // that matched here. The same reason symbol search turns them off.
   picker.matchOnDescription = false;
   picker.matchOnDetail = false;
+  // Without this the widget re-sorts the rows by its own label match while
+  // anything is typed, and draws no separators at all then (quickInputList.ts,
+  // filter(): "We don't render any separators if we're sorting"). The property
+  // is a proposed API by name - absent from the stable vscode.d.ts as of
+  // 2026-09-28 - but the extension host's setter has no proposal check and the
+  // main thread copies it through, so plain JavaScript reaches it. Guarded so
+  // that the day it is gated, the list falls back to how it was: in this
+  // order, with the two sections unlabelled.
+  try {
+    /** @type {any} */ (picker).sortByLabel = false;
+  } catch {
+    // Left as it was.
+  }
   picker.busy = true;
   picker.show();
 
