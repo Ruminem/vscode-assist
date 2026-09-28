@@ -123,11 +123,11 @@ The button in the search box turns fuzzy matching off for that search, so the
 letters have to be adjacent. `assist.symbolSearch.fuzzy` sets where it starts.
 `Ctrl+T` is untouched.
 
-The letters that matched are shown in bold. VS Code does not let an extension
-choose which letters of a search result it highlights, so they are drawn in
-Unicode's bold sans-serif letters instead. Only A-Z, a-z and 0-9 have those,
-they can look slightly different from the text around them, and a screen reader
-reads them as mathematical letters.
+The highlighted letters are VS Code's own, the same bold as in its pickers: a
+prefix, letters that start words, or a run - `ta` lights the t and the A of
+`totalArea`. An extension cannot choose the letters, so a match that lands
+elsewhere, like the `ce` in `Circle`, is listed without a highlight. Earlier
+versions drew their own bold look-alike glyphs; they were too faint to read.
 
 clangd returns at most 100 symbols per request unless it is started with
 `--limit-results=0`. In a large project, a name you only remember the middle of
@@ -261,10 +261,12 @@ line should get.
 ## Searching files
 
 `Alt+E` opens a file search of this extension's own. Type any letters of the
-path in order - `fda` reaches `features/dot-arrow.js` - and the letters that
-matched are drawn in bold. Each row puts the file name first and its folder
-after, as VS Code's own picker does, so a deep path clips the folder and never
-the name.
+path in order - `fda` reaches `features/dot-arrow.js`. Each row puts the file
+name first and its folder after, as VS Code's own picker does, so a deep path
+clips the folder and never the name. The highlights are VS Code's own, in the
+name and the folder alike - a prefix, word starts (`ckjs` on `check-keys.js`)
+or a run; a match that lands elsewhere, or that is typed through a Korean
+keyboard, is listed without one.
 
 **The list is ordered the way VS Code's own picker orders it.** Before you type,
 it shows the files you opened recently in this workspace, newest first, followed
@@ -285,11 +287,12 @@ tabs are added below it.
 
 **What it lists is a little narrower than VS Code's own picker.** The list
 honours `files.exclude` and `search.exclude`, as Quick Open does, and on top of
-that leaves out build output nobody opens in an editor - object files,
-libraries, executables, debug databases, precompiled headers, bytecode and
-archives (`.obj`, `.o`, `.lib`, `.dll`, `.exe`, `.pdb`, `.pch`, `.class`,
-`.pyc`, `.zip` and their kin). Anything that is text stays, `.md` and `.log`
-included, and so do images, which VS Code opens. `.gitignore` is not read: VS
+that leaves out build output nobody opens in an editor - object files and the
+dependency files beside them, libraries, executables, debug databases,
+precompiled headers, index files, bytecode and archives (`.obj`, `.obj.d`,
+`.o`, `.lib`, `.dll`, `.exe`, `.pdb`, `.pch`, `.idx`, `.class`, `.pyc`, `.zip`
+and their kin). Anything else that is text stays, `.md` and `.log` included,
+and so do images, which VS Code opens. `.gitignore` is not read: VS
 Code keeps it from extensions unless `search.experimental.useIgnoreFilesInFindFiles`
 is on, so an ignored build folder shows up here until that is set - or until its
 pattern is in `search.exclude`, which keeps it out of VS Code's own search too.

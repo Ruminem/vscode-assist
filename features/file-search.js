@@ -3,7 +3,7 @@
 
 const vscode = require('vscode');
 const { trace, since } = require('./trace');
-const { fuzzyMatch, decorate } = require('./fuzzy');
+const { fuzzyMatch } = require('./fuzzy');
 const { readings } = require('./hangul');
 
 // A list longer than this is not being read, it is being scrolled.
@@ -33,11 +33,14 @@ const MAX_FILES = 20000;
 // one does not, because an `.obj` beside every `.cpp` doubles the list and eats
 // the cap above. Text stays whatever it is - `.md`, `.log`, `.map` - and so do
 // images, which VS Code opens. `search.exclude` is where more goes.
+// `.d` on its own is not here, it is D's source extension: only the dependency
+// file the compiler writes beside an object (`.obj.d`, `.o.d`) is.
 // ponytail: a fixed list; a setting of its own only if someone needs one of
 // these listed.
 const BUILD_OUTPUT = [
   'obj', 'o', 'a', 'lib', 'so', 'dylib', 'dll', 'exe', 'pdb', 'ilk', 'idb', 'exp', 'pch', 'ipch', 'res',
-  'tlog', 'lastbuildstate', 'sbr', 'bsc', 'ncb', 'sdf', 'suo', 'opendb',
+  'obj.d', 'o.d', 'iobj', 'ipdb', 'gcda', 'gcno',
+  'tlog', 'lastbuildstate', 'sbr', 'bsc', 'ncb', 'sdf', 'suo', 'opendb', 'idx',
   'class', 'jar', 'pyc', 'pyo', 'wasm',
   'zip', '7z', 'tar', 'gz', 'rar',
 ];
@@ -201,24 +204,22 @@ function recentFiles() {
 }
 
 /**
- * @param {{uri: vscode.Uri, path: string}} file @param {number[]} positions
+ * @param {{uri: vscode.Uri, path: string}} file
  * @param {string} section @param {number} rank Where the row sits, for the trace
  * line written when it is chosen.
  */
-function row(file, positions, section, rank) {
+function row(file, section, rank) {
   // Name first and folder after, as VS Code's own file picker lays it out: a row
-  // too narrow for a deep path clips the folder, never the name. The matched
-  // letters are split between the two so both still show what was hit.
+  // too narrow for a deep path clips the folder, never the name.
   const cut = nameStart(file.path) - 1;
   return {
-    label: `$(file) ${decorate(file.path.slice(cut + 1), positions.filter((i) => i > cut).map((i) => i - cut - 1))}`,
-    description: cut > 0 ? decorate(file.path.slice(0, cut), positions.filter((i) => i < cut)) : undefined,
+    label: `$(file) ${file.path.slice(cut + 1)}`,
+    description: cut > 0 ? file.path.slice(0, cut) : undefined,
     uri: file.uri,
     section,
     rank,
     // The picker filters by label on its own, with a matcher that is not this
-    // one - and the label's matched letters are bold look-alikes it cannot
-    // read, so without this every row vanished the moment anything was typed.
+    // one; without this every row vanished the moment anything was typed.
     alwaysShow: true,
   };
 }
@@ -226,19 +227,27 @@ function row(file, positions, section, rank) {
 async function searchFiles() {
   const picker = vscode.window.createQuickPick();
   picker.placeholder = vscode.l10n.t('Search files in the workspace');
-  // VS Code would otherwise filter the list a second time with its own matcher,
-  // over labels this extension has already decorated - it would throw away rows
-  // that matched here. The same reason symbol search turns them off.
-  picker.matchOnDescription = false;
+  // The highlighted letters are the widget's own: it marks what its matcher
+  // finds in the label and, with this on, in the folder - a prefix, letters at
+  // word starts (`ckjs` on check-keys.js), or a run (filters.ts,
+  // fuzzyContiguousFilter). That is the bold-and-coloured highlight of VS
+  // Code's own pickers. An extension cannot hand over letters of its own -
+  // TransferQuickPickItem carries no highlights (extHostQuickOpen.ts,
+  // 2026-09-28) - and the bold look-alike glyphs the labels used to carry were
+  // too faint to read. So letters that fall elsewhere, a Hangul reading of the
+  // query, and a match split across folder and name get no highlight; the row
+  // still shows, in this order.
+  picker.matchOnDescription = true;
   picker.matchOnDetail = false;
   // Without this the widget re-sorts the rows by its own label match while
   // anything is typed, and draws no separators at all then (quickInputList.ts,
   // filter(): "We don't render any separators if we're sorting"). The property
   // is a proposed API by name - absent from the stable vscode.d.ts as of
   // 2026-09-28 - but the extension host's setter has no proposal check and the
-  // main thread copies it through, so plain JavaScript reaches it. Guarded so
-  // that the day it is gated, the list falls back to how it was: in this
-  // order, with the two sections unlabelled.
+  // main thread copies it through, so plain JavaScript reaches it. Guarded; the
+  // day it is gated the widget sorts its own matches to the top and draws no
+  // separators. The word joiners that once left it nothing to match went with
+  // the look-alikes - they also left it nothing to highlight.
   try {
     /** @type {any} */ (picker).sortByLabel = false;
   } catch {
@@ -297,11 +306,11 @@ async function searchFiles() {
     const items = [];
     if (recentHits.length) {
       items.push(separator(vscode.l10n.t('recently opened')));
-      items.push(...recentHits.map(({ file, match }, i) => row(file, match.positions, 'recent', i + 1)));
+      items.push(...recentHits.map(({ file }, i) => row(file, 'recent', i + 1)));
     }
     if (scored.length) {
       items.push(separator(vscode.l10n.t('file results')));
-      items.push(...scored.slice(0, MAX_ITEMS).map(({ file, match }, i) => row(file, match.positions, 'files', i + 1)));
+      items.push(...scored.slice(0, MAX_ITEMS).map(({ file }, i) => row(file, 'files', i + 1)));
     }
     picker.items = items;
     trace(

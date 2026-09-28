@@ -145,6 +145,9 @@ check('search.exclude entries are passed on', parts.includes('**/node_modules'),
 check('an entry turned off is not', parts.includes('**/gone'), false);
 check('a sibling rule is left out', parts.includes('**/*.js'), false);
 check('build output is left out by default', parts.includes('**/*.obj') && parts.includes('**/*.pdb'), true);
+check('so is the dependency file beside an object', parts.includes('**/*.obj.d') && parts.includes('**/*.o.d'), true);
+// D source files end in `.d` too.
+check('but not every .d', parts.includes('**/*.d'), false);
 check('text stays - markdown is not build output', parts.some((p) => p.endsWith('.md') || p.endsWith('.txt') || p.endsWith('.log')), false);
 // glob.ts closes a brace group at the first `}`, so a group inside the group
 // would cut every pattern after it short.

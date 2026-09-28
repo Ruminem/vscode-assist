@@ -3,7 +3,7 @@
 
 const vscode = require('vscode');
 const { trace, since } = require('./trace');
-const { fuzzyMatch, exactMatch, decorate } = require('./fuzzy');
+const { fuzzyMatch, exactMatch } = require('./fuzzy');
 
 // Indexed by vscode.SymbolKind, which is a plain 0..25 enum.
 const KIND_ICONS = [
@@ -180,8 +180,11 @@ async function searchSymbols() {
           `${ranked.length} matched in ${since(start)}${fuzzy && !everything ? ', full list not in yet' : ''}`,
       );
 
-      picker.items = ranked.slice(0, MAX_ITEMS).map(({ name, positions, symbol }) => ({
-        label: `$(${KIND_ICONS[symbol.kind] || 'symbol-misc'}) ${decorate(name, positions)}`,
+      // The highlighted letters are the widget's own, a prefix, word starts or a
+      // run - `ta` lights the t and the A of totalArea, `ce` lights nothing in
+      // Circle. file-search.js says why nothing better is reachable.
+      picker.items = ranked.slice(0, MAX_ITEMS).map(({ name, symbol }) => ({
+        label: `$(${KIND_ICONS[symbol.kind] || 'symbol-misc'}) ${name}`,
         description: [
           symbol.containerName,
           `${vscode.workspace.asRelativePath(symbol.location.uri)}:${symbol.location.range.start.line + 1}`,
