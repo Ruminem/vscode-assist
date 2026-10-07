@@ -113,11 +113,8 @@ check('a Hangul query reaches an English path', readings(query).some((r) => fuzz
 
 // --- how the file search orders a whole path ----------------------------------
 
-const { matchPath, sortResults, rgArgs } = require(path.join(ROOT, 'features', 'file-search.js'));
-const rank = (query, target, nameOnly = false) => {
-  const match = matchPath(query, target, nameOnly);
-  return match ? match.score : null;
-};
+const { prepare, compile, scoreFile, matchPath, narrows, sortResults, cmakeBuilds, rgArgs } = require(path.join(ROOT, 'features', 'file-search.js'));
+const rank = (query, target, nameOnly = false) => matchPath(query, target, nameOnly);
 const above = (query, first, second) => rank(query, first) > rank(query, second);
 
 // The Quick Open ordering, in its three tiers. Each pair is chosen so that the
@@ -157,8 +154,8 @@ check('a Hangul piece is read through its keys', rank('애 ㅓㄴ', 'features/do
 // the scores alone rank the other way, so the check pins the lowering and not
 // the scoring.
 const testPair = () => [
-  { file: { path: 'tests/widget.cpp' }, match: { score: rank('widget', 'tests/widget.cpp') } },
-  { file: { path: 'src/ui/widget_impl.cpp' }, match: { score: rank('widget', 'src/ui/widget_impl.cpp') } },
+  { file: prepare('tests/widget.cpp'), score: rank('widget', 'tests/widget.cpp') },
+  { file: prepare('src/ui/widget_impl.cpp'), score: rank('widget', 'src/ui/widget_impl.cpp') },
 ];
 const order = (query) => sortResults(query, testPair()).map((hit) => hit.file.path);
 check('the pair scores the test file higher on its own', above('widget', 'tests/widget.cpp', 'src/ui/widget_impl.cpp'), true);
@@ -166,6 +163,82 @@ check('a test file goes below the rest', order('widget'), ['src/ui/widget_impl.c
 check('a query on its way to "test" still lowers it', order('tes'), ['src/ui/widget_impl.cpp', 'tests/widget.cpp']);
 check('"test" in the query keeps the scores\' order', order('widget test'), ['tests/widget.cpp', 'src/ui/widget_impl.cpp']);
 check('"test" typed with the input method on counts', order('ㅅㄷㄴㅅ'), ['tests/widget.cpp', 'src/ui/widget_impl.cpp']);
+
+// Files under a CMake build folder go below even the test files, whatever the
+// query. The build file scores highest of the three on its own.
+const built = (rel) => Object.assign(prepare(rel), { build: true });
+const threeWay = (query) =>
+  sortResults(query, [
+    { file: built('build-a/widget.cpp.obj'), score: 3e6 },
+    { file: prepare('tests/widget.cpp'), score: 2e6 },
+    { file: prepare('src/widget_impl.cpp'), score: 1e6 },
+  ]).map((hit) => hit.file.path);
+check('a build file goes below a test file', threeWay('widget'), ['src/widget_impl.cpp', 'tests/widget.cpp', 'build-a/widget.cpp.obj']);
+check('and stays there when the query asks for test', threeWay('test'), ['tests/widget.cpp', 'src/widget_impl.cpp', 'build-a/widget.cpp.obj']);
+
+// What is a build file: anything under a folder holding CMakeCache.txt, except
+// the workspace folder itself, where that is an in-source build.
+const rels = [
+  'CMakeCache.txt',
+  'src/a.cpp',
+  'build-a/CMakeCache.txt',
+  'build-a/CMakeFiles/a.cpp.obj',
+  'build-ab/a.cpp',
+  'out\\build\\x64\\CMakeCache.txt',
+  'out\\build\\x64\\a.obj',
+];
+const listed = rels.map((rel) => prepare(rel));
+cmakeBuilds(listed, rels);
+check(
+  'files under a build folder are marked, the root and a look-alike folder are not',
+  listed.filter((file) => file.build).map((file) => file.path),
+  ['build-a/CMakeCache.txt', 'build-a/CMakeFiles/a.cpp.obj', 'out\\build\\x64\\CMakeCache.txt', 'out\\build\\x64\\a.obj'],
+);
+const inSource = ['CMakeCache.txt', 'src/a.cpp', 'CMakeFiles/a.cpp.obj'];
+const inSourceFiles = inSource.map((rel) => prepare(rel));
+cmakeBuilds(inSourceFiles, inSource);
+check('an in-source build marks nothing', inSourceFiles.some((file) => file.build), false);
+
+// A prepared path keeps the word starts it works out, so a second query on it
+// has to score what a fresh one would - the name's, the path's and the loose
+// ones each in their own place.
+const kept = prepare('features/dot-arrow.js');
+const asked = ['fda', 'dot', 'feat/dot', 'fda', 'arrow js'];
+check(
+  'a path scored again scores as a fresh one',
+  asked.map((q) => scoreFile(compile(q), kept, false)),
+  asked.map((q) => scoreFile(compile(q), prepare('features/dot-arrow.js'), false)),
+);
+
+// Narrowing: a query that only adds to the last one is matched against the last
+// one's hits. Typed one letter at a time, that has to give what a pass over the
+// whole list gives.
+check('typing on narrows', narrows('qu', 'quick'), true);
+check('a new piece narrows', narrows('src', 'src ts'), true);
+check('taking letters off does not', narrows('quick', 'qu'), false);
+check('a slash typed does not', narrows('fe', 'fe/'), false);
+// The reason: a slash makes a piece loose, and the loose fit takes a path the
+// anchored one refused.
+check('fe misses fxe/a.js', rank('fe', 'fxe/a.js'), null);
+check('fe/ reaches it', rank('fe/', 'fxe/a.js') !== null, true);
+const pool = [
+  'features/dot-arrow.js', 'features/fuzzy.js', 'features/file-search.js', 'tools/check-fuzzy.js', 'tools/check-keys.js',
+  'fxe/a.js', 'fe/b.js', 'README.md', 'CMakePresets.json', 'src/editor/editorWidget.ts', 'src/edit.ts', 'x/std.h',
+].map((p) => prepare(p));
+const hitsOf = (q, from) => from.filter((file) => scoreFile(compile(q), file, false) !== null);
+let narrowedLikeWhole = true;
+for (const word of ['fe/b', 'check fuzzy', 'editor', 'sets', 'ㄹㅇㅁ', 'fda']) {
+  let last = '';
+  let from = pool;
+  for (let k = 1; k <= word.length; k++) {
+    const q = word.slice(0, k).trim();
+    const hits = hitsOf(q, last && narrows(last, q) ? from : pool);
+    if (hits.map((file) => file.path).join() !== hitsOf(q, pool).map((file) => file.path).join()) narrowedLikeWhole = false;
+    from = hits;
+    last = q;
+  }
+}
+check('typed one letter at a time, the narrowed hits are the whole list\'s', narrowedLikeWhole, true);
 
 // What counts as a test file: a word that starts with "test", nothing fused.
 for (const name of ['test_foo.py', 'foo.test.js', 'tests/x.cpp', 'src/FooTest.cpp', 'TestFoo', 'testing/x.h', 'testdata/a', 'my test.cpp']) {

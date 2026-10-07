@@ -4,7 +4,7 @@
 const vscode = require('vscode');
 const { spawn } = require('child_process');
 const { trace, since } = require('./trace');
-const { fuzzyMatch, mentionsTest } = require('./fuzzy');
+const { pickerAnchors, wordStarts, inOrder, fit, mentionsTest } = require('./fuzzy');
 const { readings } = require('./hangul');
 const { ripgrep } = require('./text-guess');
 
@@ -28,7 +28,14 @@ const NAME_PREFIX = 2e6;
 // How many paths are held at once. A workspace larger than this is one where
 // the whole point is to type rather than to scroll, and the row at the end says
 // the list was cut so that a missing file is never a silent one.
-const MAX_FILES = 20000;
+//
+// Measured on a Linux container, 2026-10-08, paths from four repositories:
+// at 50,000 a first letter took 64-98 ms and the heaviest query tried (`src
+// ts`, two pieces, 34,000 hits) 100-165 ms - about what 20,000 cost before the
+// matcher kept its word starts, 140-155 ms at worst. The list then holds about
+// 40 MB while the picker is open. At 100,000 both doubled, 150-370 ms and 80
+// MB. Raise it if a workspace needs more and a keystroke can afford it.
+const MAX_FILES = 50000;
 
 /**
  * ripgrep's arguments for listing one folder: what Quick Open hands it
@@ -108,12 +115,17 @@ function list(rg, args, cwd, limit) {
  * (extHostWorkspace.ts, main 2026-09-28) and so listed every `.obj` under a
  * build folder. Each root is listed with its own settings, which is where a
  * multi-root window keeps folder-level excludes.
+ *
+ * `cut` says the list stopped at MAX_FILES - or, for a workspace of exactly
+ * that many, that it may have.
+ * @returns {Promise<{files: ReturnType<typeof prepare>[], cut: boolean}>}
  */
 async function listFiles() {
   const started = Date.now();
   const rg = ripgrep();
   if (!rg) trace(`file search: no ripgrep under ${vscode.env.appRoot}`);
   const files = [];
+  let builds = 0;
   for (const folder of vscode.workspace.workspaceFolders || []) {
     if (!rg || files.length >= MAX_FILES) break;
     const search = vscode.workspace.getConfiguration('search', folder.uri);
@@ -124,16 +136,23 @@ async function listFiles() {
       useGlobalIgnoreFiles: search.get('useGlobalIgnoreFiles', false),
       followSymlinks: search.get('followSymlinks', true),
     });
-    for (const rel of await list(rg, args, folder.uri.fsPath, MAX_FILES - files.length)) {
+    const rels = await list(rg, args, folder.uri.fsPath, MAX_FILES - files.length);
+    const mine = rels.map((rel) => {
       const uri = vscode.Uri.joinPath(folder.uri, rel);
       // `true` keeps the folder name in front when the window has several roots,
       // which is the only thing telling two same-named files apart there.
-      files.push({ uri, path: vscode.workspace.asRelativePath(uri, true) });
+      return prepare(vscode.workspace.asRelativePath(uri, true), uri);
+    });
+    cmakeBuilds(mine, rels);
+    for (const file of mine) {
+      if (file.build) builds++;
+      files.push(file);
     }
   }
   files.sort((a, b) => a.path.localeCompare(b.path));
-  trace(`file search: ${files.length} files in ${since(started)}${files.length === MAX_FILES ? ' (capped)' : ''}`);
-  return files;
+  const cut = files.length >= MAX_FILES;
+  trace(`file search: ${files.length} files, ${builds} under a CMake build folder, in ${since(started)}${cut ? ' (capped)' : ''}`);
+  return { files, cut };
 }
 
 /**
@@ -144,7 +163,44 @@ async function listFiles() {
 const nameStart = (path) => Math.max(path.lastIndexOf('/'), path.lastIndexOf('\\')) + 1;
 
 /**
- * One piece of the query against one path.
+ * A path made ready to be matched many times: lowered once, and its word starts
+ * worked out the first time a query gets far enough to need them. Most paths
+ * never pass the in-order test on a given query, so most never need them.
+ * `test` waits the same way, for the first time the path is a hit; `build` is
+ * set by the list (cmakeBuilds).
+ * @param {string} path @param {vscode.Uri} [uri]
+ */
+function prepare(path, uri) {
+  const name = path.slice(nameStart(path));
+  return {
+    uri,
+    path,
+    name,
+    lname: name.toLowerCase(),
+    lpath: path.toLowerCase(),
+    /** @type {Uint8Array | null | undefined} */ nameAnchors: undefined,
+    /** @type {Uint8Array | null | undefined} */ pathAnchors: undefined,
+    /** @type {Uint8Array | undefined} */ pathStarts: undefined,
+    /** @type {boolean | undefined} */ test: undefined,
+    build: false,
+  };
+}
+
+/**
+ * The query, split on spaces into pieces, each piece in every reading of it -
+ * two at most, and the second only when the piece holds Hangul: the piece as
+ * typed, and the keys that produced it. Lowered, and marked when it holds a
+ * slash. Done once a keystroke rather than once a path.
+ * @param {string} query
+ */
+const compile = (query) =>
+  query
+    .split(/\s+/)
+    .filter(Boolean)
+    .map((piece) => readings(piece).map((reading) => ({ q: reading.toLowerCase(), slash: /[\\/]/.test(reading) })));
+
+/**
+ * One reading of one piece against one path.
  *
  * The file name is tried first, and a hit there lands in a tier above anything
  * the whole path can score. Only when the name misses is the path tried, so
@@ -166,70 +222,125 @@ const nameStart = (path) => Math.max(path.lastIndexOf('/'), path.lastIndexOf('\\
  * few enough for the name alone to tell them apart. Quick Open also wants the
  * letters adjacent there; this one does not, so the file just left still comes
  * first when it is typed as an abbreviation - fifty files hold little noise.
- * @param {string} piece @param {string} path @param {boolean} nameOnly
+ * @param {{q: string, slash: boolean}} piece @param {ReturnType<typeof prepare>} file @param {boolean} nameOnly
+ * @returns {number | null}
  */
-function matchPiece(piece, path, nameOnly) {
-  if (/[\\/]/.test(piece)) return fuzzyMatch(piece, path);
-  const cut = nameStart(path);
-  const name = path.slice(cut);
-  const hit = fuzzyMatch(piece, name, true);
-  if (hit) {
-    const tier = name.toLowerCase().startsWith(piece.toLowerCase()) ? NAME_PREFIX : IN_NAME;
-    return { score: tier + hit.score, positions: hit.positions.map((i) => i + cut) };
+function matchPiece({ q, slash }, file, nameOnly) {
+  if (slash) {
+    if (!inOrder(q, file.lpath)) return null;
+    if (file.pathStarts === undefined) file.pathStarts = wordStarts(file.path);
+    return fit(q, file.lpath, file.path.length, file.pathStarts, false);
   }
-  return nameOnly ? null : fuzzyMatch(piece, path, true);
+  if (inOrder(q, file.lname)) {
+    if (file.nameAnchors === undefined) file.nameAnchors = pickerAnchors(file.name);
+    const score = fit(q, file.lname, file.name.length, file.nameAnchors, true);
+    if (score !== null) return (file.lname.startsWith(q) ? NAME_PREFIX : IN_NAME) + score;
+  }
+  if (nameOnly || !inOrder(q, file.lpath)) return null;
+  if (file.pathAnchors === undefined) file.pathAnchors = pickerAnchors(file.path);
+  return fit(q, file.lpath, file.path.length, file.pathAnchors, true);
 }
 
 /**
  * The whole query against one path, or null when any piece misses.
  *
- * The query is split on spaces and every piece has to match, in any order -
- * `dot js` finds `dot-arrow.js` - as Quick Open does. Each piece is tried in
- * every reading of it: two at most, and the second only when the piece holds
- * Hangul - the piece as typed, and the keys that produced it. Whichever scores
- * higher is the one shown, which means a Korean file name still matches as
- * itself and an English one typed with the input method on matches through its
- * keys - without this having to decide which the person meant.
- * @param {string} query @param {string} path @param {boolean} nameOnly
- * @returns {{score: number, positions: number[]} | null}
+ * Every piece has to match, in any order - `dot js` finds `dot-arrow.js` - as
+ * Quick Open does. Of a piece's readings, whichever scores higher counts, which
+ * means a Korean file name still matches as itself and an English one typed
+ * with the input method on matches through its keys - without this having to
+ * decide which the person meant.
+ * @param {ReturnType<typeof compile>} pieces @param {ReturnType<typeof prepare>} file @param {boolean} nameOnly
+ * @returns {number | null}
  */
-function matchPath(query, path, nameOnly) {
-  let score = 0;
-  const positions = [];
-  for (const piece of query.split(/\s+/).filter(Boolean)) {
+function scoreFile(pieces, file, nameOnly) {
+  if (!pieces.length) return null;
+  let total = 0;
+  for (const piece of pieces) {
     let found = null;
-    for (const reading of readings(piece)) {
-      const match = matchPiece(reading, path, nameOnly);
-      if (match && (!found || match.score > found.score)) found = match;
+    for (const reading of piece) {
+      const score = matchPiece(reading, file, nameOnly);
+      if (score !== null && (found === null || score > found)) found = score;
     }
-    if (!found) return null;
-    score += found.score;
-    positions.push(...found.positions);
+    if (found === null) return null;
+    total += found;
   }
-  return positions.length ? { score, positions } : null;
+  return total;
 }
 
 /**
- * The file results in the order shown: test files last (fuzzy.js,
- * mentionsTest) unless the query asks for them, then by score, then the
- * shorter path - a name match scores the name alone, so the three `README.md`
- * of a repository tie and the one nearer the root goes first.
+ * scoreFile for one query and one path, for tools/check-fuzzy.js.
+ * @param {string} query @param {string} path @param {boolean} nameOnly
+ */
+const matchPath = (query, path, nameOnly) => scoreFile(compile(query), prepare(path), nameOnly);
+
+/**
+ * Whether a query only adds to the last one, so that nothing the last one
+ * missed can match it and the next pass can start from the last one's hits.
+ * Every kind of fit here survives losing letters off its end, and an added
+ * piece is one more thing to match. A slash typed is the exception: it turns a
+ * piece from the anchored match into the loose one, which takes fits the
+ * anchored one refused - `fe/` lands on `fxe/` where `fe` could not.
+ * @param {string} last @param {string} query
+ */
+const narrows = (last, query) => query.startsWith(last) && !/[\\/]/.test(query.slice(last.length));
+
+/**
+ * The file results in the order shown: files under a CMake build folder last,
+ * then test files (fuzzy.js, mentionsTest) unless the query asks for them,
+ * then by score, then the shorter path - a name match scores the name alone,
+ * so the three `README.md` of a repository tie and the one nearer the root
+ * goes first.
  *
  * Asking means "test" typed whole, in any reading of the query, so `ㅅㄷㄴㅅ`
  * asks too. Lowered rather than left out: `tes` is a query on its way to
- * `test`, and a list that emptied out under it would look broken.
+ * `test`, and a list that emptied out under it would look broken. Build
+ * output is lowered for the same reason, and nothing lifts it - its names are
+ * the names of the sources it was built from.
  *
  * The recent section is not sorted this way. Those files were opened by hand,
- * a test file among them too.
- * @template {{file: {path: string}, match: {score: number}}} T
- * @param {string} query @param {T[]} scored
+ * a test file or a build file among them too.
+ * @template {{file: {path: string, test?: boolean, build?: boolean}, score: number}} T
+ * @param {string} query @param {T[]} hits
  */
-function sortResults(query, scored) {
+function sortResults(query, hits) {
   const asked = readings(query).some((reading) => /test/i.test(reading));
-  const down = new Map(scored.map((hit) => [hit, !asked && mentionsTest(hit.file.path) ? 1 : 0]));
-  return scored.sort(
-    (a, b) => down.get(a) - down.get(b) || b.match.score - a.match.score || a.file.path.length - b.file.path.length,
-  );
+  const down = (file) => {
+    if (file.build) return 2;
+    if (asked) return 0;
+    if (file.test === undefined) file.test = mentionsTest(file.path);
+    return file.test ? 1 : 0;
+  };
+  // On the hit rather than in a Map: a one-letter query sorts the whole list,
+  // and a lookup per comparison is a cost that sort does not need.
+  for (const hit of hits) hit.down = down(hit.file);
+  return hits.sort((a, b) => a.down - b.down || b.score - a.score || a.file.path.length - b.file.path.length);
+}
+
+/**
+ * Marks the files under a CMake build folder - one holding a CMakeCache.txt,
+ * which CMake writes into every build folder it configures and nowhere else.
+ * Those folders are listed when nothing ignores them (a build-a beside the
+ * build/ a .gitignore names), and their object files and generated sources
+ * share the names of the real ones.
+ *
+ * A cache at the root of a workspace folder is an in-source build: the sources
+ * are the build folder there, and nothing is marked. One in a subfolder is
+ * taken as a build folder even if it is an in-source build of a subproject;
+ * its sources are then lowered too, not lost.
+ * @param {ReturnType<typeof prepare>[]} files One workspace folder's, with `rel` relative to it
+ * @param {string[]} rels
+ */
+function cmakeBuilds(files, rels) {
+  const roots = [];
+  for (const rel of rels) {
+    const cut = nameStart(rel);
+    if (cut > 0 && rel.slice(cut) === 'CMakeCache.txt') roots.push(rel.slice(0, cut).replace(/\\/g, '/'));
+  }
+  if (!roots.length) return;
+  rels.forEach((rel, i) => {
+    const at = rel.replace(/\\/g, '/');
+    if (roots.some((root) => at.startsWith(root))) files[i].build = true;
+  });
 }
 
 /**
@@ -345,16 +456,29 @@ async function searchFiles() {
   picker.show();
 
   let files = [];
+  let cut = false;
   const loading = listFiles().then((found) => {
-    files = found;
+    ({ files, cut } = found);
     picker.busy = false;
-    return found;
   });
 
   // Read once per opening: the tabs and the history do not change while the
   // picker is up. Looking each one up takes milliseconds, well before the file
   // list has loaded.
-  const recents = await recentFiles();
+  const recents = (await recentFiles()).map(({ uri, path }) => prepare(path, uri));
+
+  // A file missing from a list that was cut is never a silent one. Not a file:
+  // choosing it leaves the picker open (onDidAccept).
+  const cutRow = () => ({
+    label: `$(warning) ${vscode.l10n.t('Listing stopped at {0} files. The rest of the workspace is not searched.', MAX_FILES)}`,
+    alwaysShow: true,
+  });
+
+  // The last query and the files it matched, in list order. A query that only
+  // adds to it (narrows) is matched against those alone - typing `quick` scores
+  // the whole list once, at `q`, and a handful of hits after that.
+  /** @type {{query: string, from: typeof files, matched: typeof files} | null} */
+  let last = null;
 
   /**
    * Two sections, as Quick Open has them: the recently opened files matched by
@@ -368,40 +492,52 @@ async function searchFiles() {
     const separator = (label) => ({ label, kind: vscode.QuickPickItemKind.Separator });
 
     if (!query) {
+      last = null;
       picker.items = recents.length
         ? recents.map((file, i) => row(file, 'recent', i + 1))
-        : files.slice(0, MAX_ITEMS).map((file, i) => row(file, 'all', i + 1));
+        : [...files.slice(0, MAX_ITEMS).map((file, i) => row(file, 'all', i + 1)), ...(cut ? [cutRow()] : [])];
       return;
     }
 
+    const pieces = compile(query);
     const recentHits = [];
     for (const file of recents) {
-      const match = matchPath(query, file.path, true);
-      if (match) recentHits.push({ file, match });
+      const score = scoreFile(pieces, file, true);
+      if (score !== null) recentHits.push({ file, score });
     }
     // Stable, so recency breaks a tie.
-    recentHits.sort((a, b) => b.match.score - a.match.score);
+    recentHits.sort((a, b) => b.score - a.score);
 
+    // The list order is kept in `matched`, so a narrowed pass ties the way a
+    // whole one would.
+    const reuse = last !== null && last.from === files && narrows(last.query, query);
+    const pool = reuse ? last.matched : files;
     const shown = new Set(recentHits.map(({ file }) => file.uri.toString()));
-    const scored = [];
-    for (const file of files) {
-      const match = matchPath(query, file.path, false);
-      if (match && !shown.has(file.uri.toString())) scored.push({ file, match });
+    const matched = [];
+    const hits = [];
+    for (const file of pool) {
+      const score = scoreFile(pieces, file, false);
+      if (score === null) continue;
+      matched.push(file);
+      if (!shown.has(file.uri.toString())) hits.push({ file, score });
     }
-    sortResults(query, scored);
+    last = { query, from: files, matched };
+    sortResults(query, hits);
 
     const items = [];
     if (recentHits.length) {
       items.push(separator(vscode.l10n.t('recently opened')));
       items.push(...recentHits.map(({ file }, i) => row(file, 'recent', i + 1)));
     }
-    if (scored.length) {
+    if (hits.length) {
       items.push(separator(vscode.l10n.t('file results')));
-      items.push(...scored.slice(0, MAX_ITEMS).map(({ file }, i) => row(file, 'files', i + 1)));
+      items.push(...hits.slice(0, MAX_ITEMS).map(({ file }, i) => row(file, 'files', i + 1)));
     }
+    if (cut) items.push(cutRow());
     picker.items = items;
     trace(
-      `file search: "${query}" matched ${recentHits.length} recent and ${scored.length} of ${files.length} in ${since(started)}`,
+      `file search: "${query}" matched ${recentHits.length} recent and ${hits.length} of ${pool.length}` +
+        `${reuse ? ' (narrowed from the last query)' : ''} in ${since(started)}`,
     );
   };
 
@@ -418,9 +554,11 @@ async function searchFiles() {
   picker.onDidAccept(async () => {
     const chosen = /** @type {{uri?: vscode.Uri, section?: string, rank?: number}} */ (picker.selectedItems[0]);
     const query = picker.value.trim();
+    // The row saying the list was cut: nothing to open, and no reason to close.
+    if (chosen && !chosen.uri) return;
     accepted = true;
     picker.hide();
-    if (!chosen || !chosen.uri) return;
+    if (!chosen) return;
     trace(`file search: "${query}" chose #${chosen.rank} of ${chosen.section}`);
     await vscode.window.showTextDocument(chosen.uri);
   });
@@ -444,8 +582,13 @@ module.exports = {
     'assist.searchFiles': searchFiles,
   },
   // For tools/check-fuzzy.js.
+  prepare,
+  compile,
+  scoreFile,
   matchPath,
+  narrows,
   sortResults,
+  cmakeBuilds,
   rgArgs,
   recentFiles,
 };

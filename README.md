@@ -312,15 +312,32 @@ not hidden: while you are still typing `tes`, the list does not empty out.
 recently opened section is not reordered this way - you opened those files
 yourself.
 
+**Files in a CMake build folder go below even those**, whatever you type. A
+folder holding a `CMakeCache.txt` is one CMake configured to build into, and
+what is under it - object files, generated sources, copied headers - shares the
+names of the sources. This is for the build folders a project does not ignore:
+`build/` may be in `.gitignore` while a `build-a/` beside it is not. A cache at
+the top of a workspace folder is an in-source build, so nothing is lowered
+there. Like test files they are lowered, not hidden - when the generated file is
+the one you want, it is still in the list - and the recently opened section is
+left as it is.
+
 **What it lists is what Quick Open lists.** The list comes from the ripgrep VS
 Code ships, run the way Quick Open runs it: hidden files in, `files.exclude`
 and `search.exclude` out, and `.gitignore`, `.ignore` and `.git/info/exclude`
 honoured - so a build folder the project ignores, or a worktree under
 `.claude/`, does not show. The three `search.use*IgnoreFiles` settings and
 `search.followSymlinks` are read the same way. There is no list here of what
-build output looks like: if an `.obj` shows up, it shows up in Quick Open too,
-and the place to fix it is the project's `.gitignore` - or `search.exclude`,
-which keeps it out of VS Code's own search as well.
+build output looks like - only the CMake build folders above are told apart,
+and they are lowered, not left out. If an `.obj` shows up, it shows up in Quick
+Open too, and the place to take it out is the project's `.gitignore` - or
+`search.exclude`, which keeps it out of VS Code's own search as well. At most
+50,000 files are listed; a larger workspace gets a row at the bottom saying the
+listing stopped there, so a file missing from it is never a silent one. Each
+path is lowered once when the list is made, its word starts are worked out the
+first time a query needs them and kept, and a query that only adds letters to
+the last one is matched against the last one's hits alone - typing `quick` goes
+through the whole list once, at `q`.
 
 **It also finds files through a Korean keyboard.** Code is written in English
 and file names follow it, but an input method left switched on does not know
