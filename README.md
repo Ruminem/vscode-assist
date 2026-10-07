@@ -123,6 +123,10 @@ The button in the search box turns fuzzy matching off for that search, so the
 letters have to be adjacent. `assist.symbolSearch.fuzzy` sets where it starts.
 `Ctrl+T` is untouched.
 
+Test symbols - a name like `TestWidget`, or any symbol in a test file - go
+below the rest until the query has `test` in it, by the same rule as the file
+search ([Searching files](#searching-files)).
+
 The highlighted letters are VS Code's own, the same bold as in its pickers: a
 prefix, letters that start words, or a run - `ta` lights the t and the A of
 `totalArea`. An extension cannot choose the letters, so a match that lands
@@ -295,6 +299,18 @@ extension read its editor history, so this one keeps its own list of the last
 50 files per workspace; it starts empty on a new install, which is why the open
 tabs are added below it. A file deleted or renamed since - in VS Code, a
 terminal or git - is looked up each time the search opens, and dropped.
+
+**Test files sink to the bottom of the file results** until the query has
+`test` in it, typed whole. A test file usually carries the name of the file it
+tests, so `widget` would otherwise put `tests/widget.cpp` above the
+`widget_impl.cpp` you were after. A test file is one whose path holds a word
+starting with `test` - `test_foo.py`, `foo.test.js`, `tests/`, `FooTest.cpp`,
+`testdata/` - so `latest.js` and `contest/` are left alone. "test" fused into a
+longer word, as in `googletest` or `unittest`, is not caught. They are lowered,
+not hidden: while you are still typing `tes`, the list does not empty out.
+`ㅅㄷㄴㅅ`, typed with the Korean input method on, counts as `test`. The
+recently opened section is not reordered this way - you opened those files
+yourself.
 
 **What it lists is what Quick Open lists.** The list comes from the ripgrep VS
 Code ships, run the way Quick Open runs it: hidden files in, `files.exclude`

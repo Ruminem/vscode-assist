@@ -3,6 +3,10 @@
 **끝났다의 정의** — `Alt+G` 한 번으로 선언부↔정의부를 왕복할 수 있고, 내 C++
 프로젝트에서 하루 써봐도 안 거슬린다.
 
+**2026-10-07** — 여기까지 됨: 노션 메모 e7f6 — `Alt+E`·`Shift+Alt+S` 에서 테스트 파일·심볼을 맨 아래로 내림(배포 전). 숨기지 않고 내림(`tes` 에서 목록이 비지 않게), 질의에 `test` 를 다 치면 원래 순서. 판정은 `fuzzy.js` 의 `mentionsTest` — `test` 로 시작하는 낱말이 있으면(`tests/`·`foo_test`·`FooTest`), `latest`·`contest` 는 안 걸림, `googletest`·`unittest` 는 못 잡음. `Alt+E` 최근 칸은 안 내림. `check-fuzzy` 19건 추가, 변이 넷 걸림. 에디터에서는 안 봤음. 노션 메모 a4f6(`.obj` 가 여전히 뜸)은 아직 원인 미확인 — 업무 폴더에 `.git` 이 있는지·`.gitignore` 에 `*.obj` 가 있는지부터 봐야 함.
+다음 할 것: 설치본에서 `widget` 류로 테스트 파일이 아래 가는지 보기. 그다음 a4f6 원인 확인, 그다음 업무 PC 추적 수집.
+막힌 것: 없음.
+
 **2026-09-29, 셋째** — 여기까지 됨: 0.6.1 배포. 설치본에서 `ckc`·지운 파일 둘 다 확인받고 냄. 태그 `v0.6.1` 을 `f10b665`(Bump 커밋)에 찍었고 Release 25초·Marketplace 33초 만에 둘 다 성공. CHANGELOG 에 단어 머리·지운 파일 두 줄을 영어·한국어로 적음. 본 체크아웃에 사용자 시험 파일(`tools/check-keys copy.js`)이 있어 `release.js` 가 더러운 트리로 막혔고, 같은 커밋인 세션 worktree 에서 돌림. 릴리스 노트에 NEXT.md 커밋 제목(`Note the 0.6.0 release…`)이 한 줄 섞였음 — 노트 전용 커밋도 제목이 곧 변경 내역이 됨.
 다음 할 것: 업무 PC 추적 수집. `file search: "…" chose #N of recent|files` 와 `dismissed` 줄을 며칠 모아 순번 분포를 봄.
 막힌 것: 없음.

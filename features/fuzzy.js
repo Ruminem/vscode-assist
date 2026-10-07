@@ -176,4 +176,26 @@ function exactMatch(query, name) {
   return { score: 100 - i - name.length / 100, positions: Array.from(query, (_, k) => i + k) };
 }
 
-module.exports = { startsWord, fuzzyMatch, exactMatch };
+/**
+ * Whether a name or a path holds a word that starts with "test": test_foo.py,
+ * foo.test.js, tests/, FooTest.cpp, TestFoo, testdata/. Both searches rank
+ * these below everything else unless the query itself has "test" in it - test
+ * files share the names of what they test, and push the real one down a list
+ * where it was typed for.
+ *
+ * A word start here is the first character, a capital after a small letter, or
+ * anything after a character that is not a letter - wider than startsWord, so
+ * `my test.cpp` and `v2test` count. What it cannot see is "test" fused into a
+ * word, googletest or unittest; a test/ folder under those still counts.
+ * latest, contest and Attestation are the reason it looks for word starts at all.
+ * @param {string} text
+ */
+function mentionsTest(text) {
+  for (const { index: i } of text.matchAll(/test/gi)) {
+    const prev = i > 0 ? text[i - 1] : '';
+    if (!/[A-Za-z]/.test(prev) || (/[a-z]/.test(prev) && text[i] === 'T')) return true;
+  }
+  return false;
+}
+
+module.exports = { startsWord, fuzzyMatch, exactMatch, mentionsTest };

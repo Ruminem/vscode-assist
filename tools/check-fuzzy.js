@@ -26,7 +26,7 @@ Module._load = (request, parent, isMain) => (request === 'vscode' ? vscode : loa
 
 const ROOT = path.join(__dirname, '..');
 const { toKeys, hasHangul, readings } = require(path.join(ROOT, 'features', 'hangul.js'));
-const { fuzzyMatch, startsWord } = require(path.join(ROOT, 'features', 'fuzzy.js'));
+const { fuzzyMatch, startsWord, mentionsTest } = require(path.join(ROOT, 'features', 'fuzzy.js'));
 
 let failed = 0;
 function check(name, got, want) {
@@ -113,7 +113,7 @@ check('a Hangul query reaches an English path', readings(query).some((r) => fuzz
 
 // --- how the file search orders a whole path ----------------------------------
 
-const { matchPath, rgArgs } = require(path.join(ROOT, 'features', 'file-search.js'));
+const { matchPath, sortResults, rgArgs } = require(path.join(ROOT, 'features', 'file-search.js'));
 const rank = (query, target, nameOnly = false) => {
   const match = matchPath(query, target, nameOnly);
   return match ? match.score : null;
@@ -152,6 +152,28 @@ check('past the picker\'s 60 characters only a run reaches', rank('ab', `x/a${'x
 check('pieces match in any order', rank('js dot', 'features/dot-arrow.js') !== null, true);
 check('every piece has to match', rank('dot zzz', 'features/dot-arrow.js'), null);
 check('a Hangul piece is read through its keys', rank('애 ㅓㄴ', 'features/dot-arrow.js') !== null, true);
+
+// Test files go below the rest unless the query asks for them. The pair is one
+// the scores alone rank the other way, so the check pins the lowering and not
+// the scoring.
+const testPair = () => [
+  { file: { path: 'tests/widget.cpp' }, match: { score: rank('widget', 'tests/widget.cpp') } },
+  { file: { path: 'src/ui/widget_impl.cpp' }, match: { score: rank('widget', 'src/ui/widget_impl.cpp') } },
+];
+const order = (query) => sortResults(query, testPair()).map((hit) => hit.file.path);
+check('the pair scores the test file higher on its own', above('widget', 'tests/widget.cpp', 'src/ui/widget_impl.cpp'), true);
+check('a test file goes below the rest', order('widget'), ['src/ui/widget_impl.cpp', 'tests/widget.cpp']);
+check('a query on its way to "test" still lowers it', order('tes'), ['src/ui/widget_impl.cpp', 'tests/widget.cpp']);
+check('"test" in the query keeps the scores\' order', order('widget test'), ['tests/widget.cpp', 'src/ui/widget_impl.cpp']);
+check('"test" typed with the input method on counts', order('ㅅㄷㄴㅅ'), ['tests/widget.cpp', 'src/ui/widget_impl.cpp']);
+
+// What counts as a test file: a word that starts with "test", nothing fused.
+for (const name of ['test_foo.py', 'foo.test.js', 'tests/x.cpp', 'src/FooTest.cpp', 'TestFoo', 'testing/x.h', 'testdata/a', 'my test.cpp']) {
+  check(`${name} is a test file`, mentionsTest(name), true);
+}
+for (const name of ['latest.js', 'contest/x.cpp', 'Attestation.h', 'googletest/gtest.h', 'unittest.py', 'widget.cpp']) {
+  check(`${name} is not`, mentionsTest(name), false);
+}
 
 // The recent section: matched like the rest, but the name alone - unless the
 // piece is a path.

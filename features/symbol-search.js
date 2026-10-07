@@ -3,7 +3,7 @@
 
 const vscode = require('vscode');
 const { trace, since } = require('./trace');
-const { fuzzyMatch, exactMatch } = require('./fuzzy');
+const { fuzzyMatch, exactMatch, mentionsTest } = require('./fuzzy');
 
 // Indexed by vscode.SymbolKind, which is a plain 0..25 enum.
 const KIND_ICONS = [
@@ -48,7 +48,11 @@ async function ask(query) {
 function entry(symbol) {
   const name = bareName(symbol.name);
   const at = symbol.location;
-  return { name, symbol, key: `${at.uri.toString()}:${at.range.start.line}:${name}` };
+  // A test symbol, or any symbol in a test file - helpers and fixtures there
+  // share names with the code under test. Ranked last unless the query says
+  // "test" (fuzzy.js, mentionsTest).
+  const test = mentionsTest(name) || mentionsTest(vscode.workspace.asRelativePath(at.uri));
+  return { name, symbol, test, key: `${at.uri.toString()}:${at.range.start.line}:${name}` };
 }
 
 /** @param {vscode.Location} loc */
@@ -173,8 +177,12 @@ async function searchSymbols() {
         const found = match(query, item.name);
         if (found) ranked.push({ ...found, ...item });
       }
-      narrowed = { query, fuzzy, entries: ranked.map(({ name, symbol, key }) => ({ name, symbol, key })) };
-      ranked.sort((a, b) => b.score - a.score || a.name.localeCompare(b.name));
+      narrowed = { query, fuzzy, entries: ranked.map(({ name, symbol, test, key }) => ({ name, symbol, test, key })) };
+      // Test symbols last unless "test" was typed whole; lowered, not left out,
+      // as the file search does (file-search.js, sortResults).
+      const asked = /test/i.test(query);
+      const down = (item) => (!asked && item.test ? 1 : 0);
+      ranked.sort((a, b) => down(a) - down(b) || b.score - a.score || a.name.localeCompare(b.name));
       trace(
         `symbol search: "${query}" scored ${seen.size}${reuse ? ' (narrowed from the last query)' : ''}, ` +
           `${ranked.length} matched in ${since(start)}${fuzzy && !everything ? ', full list not in yet' : ''}`,

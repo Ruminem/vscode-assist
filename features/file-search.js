@@ -4,7 +4,7 @@
 const vscode = require('vscode');
 const { spawn } = require('child_process');
 const { trace, since } = require('./trace');
-const { fuzzyMatch } = require('./fuzzy');
+const { fuzzyMatch, mentionsTest } = require('./fuzzy');
 const { readings } = require('./hangul');
 const { ripgrep } = require('./text-guess');
 
@@ -210,6 +210,29 @@ function matchPath(query, path, nameOnly) {
 }
 
 /**
+ * The file results in the order shown: test files last (fuzzy.js,
+ * mentionsTest) unless the query asks for them, then by score, then the
+ * shorter path - a name match scores the name alone, so the three `README.md`
+ * of a repository tie and the one nearer the root goes first.
+ *
+ * Asking means "test" typed whole, in any reading of the query, so `ㅅㄷㄴㅅ`
+ * asks too. Lowered rather than left out: `tes` is a query on its way to
+ * `test`, and a list that emptied out under it would look broken.
+ *
+ * The recent section is not sorted this way. Those files were opened by hand,
+ * a test file among them too.
+ * @template {{file: {path: string}, match: {score: number}}} T
+ * @param {string} query @param {T[]} scored
+ */
+function sortResults(query, scored) {
+  const asked = readings(query).some((reading) => /test/i.test(reading));
+  const down = new Map(scored.map((hit) => [hit, !asked && mentionsTest(hit.file.path) ? 1 : 0]));
+  return scored.sort(
+    (a, b) => down.get(a) - down.get(b) || b.match.score - a.match.score || a.file.path.length - b.file.path.length,
+  );
+}
+
+/**
  * Recently opened files, newest first, as uri strings. Held here and written
  * through to workspaceState, because VS Code keeps its own editor history to
  * itself - vscode.d.ts has no way to read it (checked on main, 2026-09-28).
@@ -365,9 +388,7 @@ async function searchFiles() {
       const match = matchPath(query, file.path, false);
       if (match && !shown.has(file.uri.toString())) scored.push({ file, match });
     }
-    // A name match scores the name alone, so the three `README.md` of a
-    // repository tie; the shorter path, the one nearer the root, goes first.
-    scored.sort((a, b) => b.match.score - a.match.score || a.file.path.length - b.file.path.length);
+    sortResults(query, scored);
 
     const items = [];
     if (recentHits.length) {
@@ -424,6 +445,7 @@ module.exports = {
   },
   // For tools/check-fuzzy.js.
   matchPath,
+  sortResults,
   rgArgs,
   recentFiles,
 };
