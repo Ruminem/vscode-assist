@@ -1,5 +1,19 @@
 # Changelog
 
+## 0.6.2 — 2026-10-08
+
+- Test files in `Alt+E` and test symbols in `Shift+Alt+S` sink to the bottom of the results unless your query has `test` in it. They are lowered, not hidden, so typing `tes` still finds them. A word has to start with `test` - `tests/`, `foo_test`, `FooTest` - so `latest` and `contest` stay where they were.
+- Files inside a CMake build folder - any folder below the workspace root that holds a `CMakeCache.txt` - go below even the test files in `Alt+E`, whatever you type. This is for build folders that `.gitignore` does not cover, such as a second `build-debug` next to the source.
+- `Alt+E` matches faster: about half the time on the first letter, and each letter you add after that searches only what the previous one found.
+- `Alt+E` lists up to 50,000 files, up from 20,000. When a workspace has more, a row at the bottom says the list was cut, instead of the rest being silently missing.
+
+**한국어**
+
+- `Alt+E` 의 테스트 파일과 `Shift+Alt+S` 의 테스트 기호가 결과 맨 아래로 내려감. 질의에 `test` 가 있으면 원래 순서임. 숨기지 않고 내리므로 `tes` 까지 쳐도 찾힘. 낱말이 `test` 로 시작해야 걸림 — `tests/`·`foo_test`·`FooTest` — 그래서 `latest`·`contest` 는 그대로임.
+- `Alt+E` 에서 CMake 빌드 폴더 — 작업 영역 루트 아래 `CMakeCache.txt` 가 있는 폴더 — 안의 파일은 무엇을 치든 테스트 파일보다도 아래로 내려감. 소스 옆에 둔 `build-debug` 처럼 `.gitignore` 가 안 덮는 빌드 폴더를 위한 것임.
+- `Alt+E` 매칭이 빨라짐 — 첫 글자에서 대략 절반의 시간이고, 그 뒤로 덧붙여 치는 글자는 앞 글자가 찾은 것 안에서만 찾음.
+- `Alt+E` 가 2만 개가 아니라 5만 개까지 목록에 담음. 작업 영역이 그보다 크면 나머지가 조용히 빠지는 대신 맨 아래에 목록이 잘렸다는 행이 뜸.
+
 ## 0.6.1 — 2026-09-29
 
 - `Alt+E` counts word starts the way VS Code's picker does: after a space or any punctuation, at a digit, and at every capital. `ckc` now finds `check-keys copy.js`, `rd` finds `README.md` and `f2` finds `file2.txt`. Names the picker does not read as words, such as `CODE_OF_CONDUCT.md`, match only a run of letters, so every row shown is one VS Code highlights.
