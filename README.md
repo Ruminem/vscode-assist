@@ -9,7 +9,7 @@ Navigation shortcuts VS Code does not ship, bound to keys VS Code does not use.
 | `Alt+G` / `Alt+D` | Go to the definition. Press it on the definition and it goes back to the declaration. |
 | `Ctrl+Shift+↓` / `Ctrl+Shift+↑` | Jump to the next / previous function in this file. |
 | `Shift+Alt+S` | Search symbols in the workspace, with fuzzy matching you can switch off. |
-| `Alt+E` | Search files in the workspace, recently opened ones first, and find them through a Korean keyboard too. |
+| `Alt+E` | Search files in the workspace, or in one CMake project, recently opened ones first, and find them through a Korean keyboard too. |
 | `Ctrl+Alt+P` | Attach the debugger to a running process. |
 | `Shift+Alt+P` | Attach again to the process attached last. |
 | `Shift+Alt+O` | Open a file anywhere in the workspace. |
@@ -350,6 +350,24 @@ path is lowered once when the list is made, its word starts are worked out the
 first time a query needs them and kept, and a query that only adds letters to
 the last one is matched against the last one's hits alone - typing `quick` goes
 through the whole list once, at `q`.
+
+**It can be narrowed to one CMake project.** When CMake Tools has configured
+the folder, a filter button sits at the top right of the search box; it lists
+`All files` and every `project()` that configure went through, each with the
+`CMakeLists.txt` that declared it. A project is its folder and everything
+under it, the folders of the projects it adds included - so the top project, at
+the root `CMakeLists.txt`, is the whole tree, and a project below it is that
+part of it. Both sections, recently opened and file results, keep only what is
+inside, and the query you had typed stays. The list is CMake Tools' own code
+model, the one its active preset or kit last configured, not a reading of
+`CMakeLists.txt`: a subdirectory an option leaves out is not configured, and
+neither is a project in it. Target source lists were the other way to draw the
+line, and were left - a target lists sources from other folders and leaves out
+most headers. The choice is kept per workspace; a project a reconfigure drops
+or moves is forgotten, and the search goes back to the whole workspace. Without
+CMake Tools, or before its first configure, there is no button. CMake Tools is
+not started by this extension, it starts itself in a folder with a
+`CMakeLists.txt`.
 
 **It also finds files through a Korean keyboard.** Code is written in English
 and file names follow it, but an input method left switched on does not know
