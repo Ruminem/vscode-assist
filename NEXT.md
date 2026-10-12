@@ -3,6 +3,10 @@
 **끝났다의 정의** — `Alt+G` 한 번으로 선언부↔정의부를 왕복할 수 있고, 내 C++
 프로젝트에서 하루 써봐도 안 거슬린다.
 
+**2026-10-12, 넷째** — 여기까지 됨: 0.7.0 으로 올림(`0bf0d90` `Bump to 0.7.0`, CHANGELOG 에 CMake 범위·잘림 경고·namespace 빼기·인덱싱 중 `geo::`). 검사 일곱 통과, `release.js` 점검 통과.
+다음 할 것: PC 에서 `v0.7.0` 태그 밀기. 컨테이너에서 `release.js --push` 는 프록시가 태그 푸시를 403 으로 막음(0.6.2 때와 같음) — `git fetch origin main && git tag v0.7.0 0bf0d90 && git push origin v0.7.0`.
+막힌 것: 태그 푸시가 컨테이너에서 안 됨.
+
 **2026-10-12, 셋째** — 여기까지 됨: `Shift+Alt+S` 에도 같은 CMake 프로젝트 필터 버튼(배포 전). fuzzy 버튼 옆 둘째 버튼이고, 범위는 `Alt+E` 와 같이 씀(한쪽에서 고르면 다른 쪽도). 저장·되살리기·고르는 목록·버튼을 `cmake-projects.js` 로 옮겨 두 검색이 같이 부름 — 그래서 `cmake-projects.js` 가 `activate` 를 갖고 `extension.js` 목록에 들어감. 고르는 목록의 첫 줄은 `All files` → `Whole workspace`(`작업 영역 전체`). **심볼은 서버가 고른 것에 거르는 것이라** clangd 100개 상한에서 잘린 뒤라는 함정이 있음 — 범위가 있고 질의 답이 100개에 닿으면 맨 아래에 잘렸을 수 있다는 행을 붙임. `check-cmake-projects` 13건 더해 51건, 변이 여덟 걸림. 진짜 서버·CMake Tools 로는 안 돌려 봄.
 다음 할 것: 업무 PC 에서 `Shift+Alt+S` 필터로 좁혀 보기. 경고 행이 자주 뜨면 clangd 에 `--limit-results=0` 을 줄지 정함. `Alt+E` 필터·`Alt+G` `geo::` 확인은 아래 그대로 남음.
 막힌 것: 없음.
