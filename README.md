@@ -46,6 +46,12 @@ written at the cursor decides instead: on `geo::scale(2)` only names inside
 comes first. A qualifier that matches none of them - an alias, say - keeps them
 all.
 
+A namespace is never a destination. It is a scope opened in many places, and
+clangd answers the `geo` of `geo::scale(2)` with only the first `namespace geo {`
+it knows. So a provider answer that lands on a namespace name, a namespace from
+the name search and a `namespace geo` line from the text guesses are all
+dropped; with the cursor on `geo` there is nowhere to go.
+
 In C++, virtuals get rows of their own. An implementation answer is always an
 override there, so it is labelled **Override**. The other direction has no
 request of its own, but clangd answers a definition request made on the
@@ -123,6 +129,7 @@ nothing. This search takes the full list the server gives for an empty query,
 adds the server's answer to the query itself, and does the matching here.
 The full list is not waited for - on a large project it is the slowest answer -
 so rows for the query show first and the gap-matched ones join when it arrives.
+Namespaces are left out, as in `Alt+G`.
 
 The button in the search box turns fuzzy matching off for that search, so the
 letters have to be adjacent. `assist.symbolSearch.fuzzy` sets where it starts.

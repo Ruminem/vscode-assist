@@ -150,8 +150,13 @@ function bareName(raw) {
   return (cut < 0 ? raw : raw.slice(0, cut)).trim();
 }
 
-/** @param {{name?: string}} symbol @param {string} word */
+/**
+ * A namespace is never a place to go: it is opened in many places and the
+ * index points at the first. clangd lists them, aliases included.
+ * @param {{name?: string, kind?: number}} symbol @param {string} word
+ */
 function carriesName(symbol, word) {
+  if (symbol.kind === vscode.SymbolKind.Namespace) return false;
   const name = bareName(symbol.name || '');
   return name === word || name.endsWith(`::${word}`);
 }
@@ -190,6 +195,27 @@ async function lineText(uri, line) {
   if (open) return line < open.lineCount ? open.lineAt(line).text : '';
   if (uri.scheme !== 'file') return '';
   return (await fs.promises.readFile(uri.fsPath, 'utf8')).split(/\r?\n/)[line] || '';
+}
+
+// Text in front of a namespace's name where clangd 18 lands on one: `namespace |geo {`,
+// `namespace app::|geo {`, `namespace |g = geo;` (measured).
+const NAMESPACE = /\bnamespace\s+(?:\w+\s*::\s*)*$/;
+// A server that lands on the start of the line instead (not measured; cpptools?).
+const NAMESPACE_LINE = /^\s*(?:inline\s+)?namespace\b/;
+
+/**
+ * Drops the provider answers that land on a namespace. On the `geo` of
+ * `geo::scale(2)` clangd answers definition and declaration with the first
+ * `namespace geo {` - a scope, not a place to go. A Location carries no kind,
+ * so the line it lands on is read. One line per answer, and answers are few.
+ * @param {{loc: vscode.Location}[]} hits
+ */
+async function notNamespaces(hits) {
+  const texts = await Promise.all(hits.map((hit) => lineText(hit.loc.uri, hit.loc.range.start.line).catch(() => '')));
+  return hits.filter((hit, i) => {
+    const before = texts[i].slice(0, hit.loc.range.start.character);
+    return !NAMESPACE.test(before) && !(/^\s*$/.test(before) && NAMESPACE_LINE.test(texts[i]));
+  });
 }
 
 /**
@@ -307,9 +333,9 @@ async function gather(document, pos, options) {
     if (!known || (hit.role && !known.role)) seen.set(key(hit), hit);
   };
   const cpp = CPP.test(document.languageId);
-  const resolved = answered
-    .flat()
-    .map((hit) => (cpp && hit.kind === 'implementation' ? { ...hit, role: 'override' } : hit));
+  const resolved = (await notNamespaces(answered.flat())).map((hit) =>
+    cpp && hit.kind === 'implementation' ? { ...hit, role: 'override' } : hit,
+  );
   // Asked after the providers because it needs their answers to know where
   // the declaration is. Only a line that spells `override` costs a request.
   if (cpp) {

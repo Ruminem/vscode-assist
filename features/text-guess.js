@@ -254,7 +254,8 @@ function textGuesses(document, pos, related) {
   // the first answer is no longer wanted.
   if (running) running.kill();
   const search = ++searches;
-  const pattern = `\\b(class|struct|union|enum|namespace)\\s+${word}\\b|^\\s*[A-Za-z_][\\w:<>,*&\\s]*[\\s*&:]${word}\\s*\\(`;
+  // No `namespace`: a round trip never lands on one (see round-trip.js NAMESPACE).
+  const pattern = `\\b(class|struct|union|enum)\\s+${word}\\b|^\\s*[A-Za-z_][\\w:<>,*&\\s]*[\\s*&:]${word}\\s*\\(`;
   const args = ['--no-heading', '--line-number', '--max-count', String(PER_FILE), '--max-filesize', MAX_FILESIZE];
   for (const glob of GLOBS) args.push('-g', glob);
   args.push('-e', pattern);

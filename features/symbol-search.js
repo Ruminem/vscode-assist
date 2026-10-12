@@ -34,7 +34,11 @@ function bareName(name) {
 async function ask(query) {
   try {
     const found = await vscode.commands.executeCommand('vscode.executeWorkspaceSymbolProvider', query);
-    return (found || []).filter((symbol) => symbol && symbol.location);
+    // A namespace is a scope, not a place to go - opening one lands on the
+    // first `namespace geo {` of many. clangd lists them, aliases included.
+    return (found || []).filter(
+      (symbol) => symbol && symbol.location && symbol.kind !== vscode.SymbolKind.Namespace,
+    );
   } catch {
     return [];
   }

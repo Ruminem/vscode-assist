@@ -62,6 +62,7 @@ const FILES = {
   '/w/main.cpp': ['#include "shape.h"', 'int main() {', '  geo::scale(2);', '  scale(2);', '  gfx::scale(2);', '}'],
   '/w/shape.cpp': ['namespace geo {', 'void scale(int) {}', '}', 'namespace ui {', 'void scale(int) {}', '}'],
   '/w/app.cpp': ['namespace app::geo {', 'void scale(int) {}', '}'],
+  '/w/one.cpp': ['namespace geo { void scale(int) {} }'],
 };
 const doc = (p) => ({
   uri: uri(p),
@@ -84,6 +85,8 @@ const L = (p, line, ch, len) => new Location(uri(p), new Range(line, ch, line, c
 const UI = { name: 'scale', containerName: 'ui', location: L('/w/shape.cpp', 4, 5, 5) };
 const GEO = { name: 'scale', containerName: 'geo', location: L('/w/shape.cpp', 1, 5, 5) };
 const APP_GEO = { name: 'scale', containerName: 'app::geo', location: L('/w/app.cpp', 1, 5, 5) };
+// What clangd 18 lists for the query "geo": the namespace, kind Namespace.
+const GEO_NS = { name: 'geo', containerName: '', kind: 2, location: L('/w/shape.cpp', 0, 10, 3) };
 
 // One press: where the cursor is, whether the index is done, what the providers
 // and the name search answer. 'hang' is clangd sitting on a request mid-index.
@@ -101,6 +104,7 @@ const stub = {
     }
   },
   Uri: { file: uri },
+  SymbolKind: { Namespace: 2 },
   l10n: { t: (s, ...a) => s.replace(/\{(\d)\}/g, (_, i) => a[i]) },
   CodeActionKind: { Empty: { append: (v) => ({ value: v, contains: (o) => o.value === v }) } },
   CodeAction: class {
@@ -126,7 +130,9 @@ const stub = {
   window: {
     activeTextEditor: editor,
     withProgress: (_o, task) => task(),
-    setStatusBarMessage() {},
+    setStatusBarMessage() {
+      seen = ['nowhere'];
+    },
     showTextDocument: async (d) => ({
       set selection(s) {
         seen = [`jump @ ${d.uri.fsPath.replace('/w/', '')}:${s.active.line + 1}`];
@@ -207,6 +213,37 @@ async function check(name, setup, expect) {
     'a qualifier nothing matches keeps every name',
     { line: 4, col: 7, indexing: true, providers: 'hang', symbols: [UI, GEO] },
     ['By name · ui::scale @ shape.cpp:5', 'By name · geo::scale @ shape.cpp:2', 'index 10%'],
+  );
+
+  // --- a namespace is never a place to go --------------------------------------
+
+  // clangd 18 answers the `geo` of geo::scale(2) with `namespace |geo {`, and an inner
+  // namespace with `namespace app::|geo {`.
+  await check(
+    'a provider landing on a namespace name is dropped',
+    {
+      line: 2,
+      col: 3,
+      indexing: false,
+      providers: { definition: [L('/w/shape.cpp', 0, 10, 3)], declaration: [L('/w/app.cpp', 0, 15, 3)] },
+      symbols: [],
+    },
+    ['nowhere'],
+  );
+  await check(
+    'a provider landing on the start of a namespace line is dropped',
+    { line: 2, col: 3, indexing: false, providers: { definition: [L('/w/shape.cpp', 0, 0, 9)] }, symbols: [] },
+    ['nowhere'],
+  );
+  await check(
+    'a namespace from the name search is dropped',
+    { line: 2, col: 3, indexing: true, providers: 'hang', symbols: [GEO_NS] },
+    ['nowhere'],
+  );
+  await check(
+    'a function on the line that opens its namespace is kept',
+    { line: 2, col: 7, indexing: false, providers: { definition: [L('/w/one.cpp', 0, 21, 5)] }, symbols: [] },
+    ['jump @ one.cpp:1'],
   );
 
   // --- a finished index: the providers decide ---------------------------------

@@ -4,8 +4,9 @@
 프로젝트에서 하루 써봐도 안 거슬린다.
 
 **2026-10-12** — 여기까지 됨: 노션 메모 efa9 수정(배포 전). clangd 인덱싱 중엔 공급자가 2초 데드라인에 잘리고, 이름 검색을 거를 앵커가 없어 `geo::scale(2)` 에서 `ui::scale` 이 맨 위에 떴음(가짜 `vscode` 하네스로 재현). `round-trip.js` 의 `writtenContainer` 가 커서 줄 한정자(`text-guess.js` 의 `callSite`)로 container 를 거름 — 같거나 `::geo` 로 끝나면 남기고, 하나도 안 맞으면 전부 둠. `tools/check-round-trip.js` 5건, 변이 셋 걸림. 업무 PC 가 이 경로(인덱싱 중이거나 compile DB 없음)를 타는지는 모름. 같은 날 메모 05f9(클릭할 때마다 정렬이 이상해짐)·64f8(파생 빌드 에러)은 확장 탓으로 안 보임 — 05f9 는 확장을 끄고 같은지부터 봐야 함.
-다음 할 것: 업무 PC 에서 `geo::` 꼴 호출에 `Alt+G` 를 눌러 맞는 namespace 만 뜨는지 보기. 메뉴 맨 아래 인덱스 줄이 `no compile_commands.json` 이면 그것부터.
-막힌 것: `Alt+E` 의 "namespace 제외" 요청이 무엇을 가리키는지 모름 — 파일 검색 창엔 파일만 뜸. 화면 한 장 받아야 함.
+이어서 사용자 요청으로 `Alt+G`·`Shift+Alt+S` 에서 namespace 를 늘 뺌(이 확장에 namespace 로 가는 기능은 없음). clangd 18 을 컨테이너에 깔아 LSP 로 재 보니 namespace 이름에 정의·선언을 물으면 `namespace |geo {` 자리를 주고 workspace/symbol 은 namespace 를 종류 3 으로 줌 — 공급자 답은 떨어진 줄 글자로, 이름 검색은 종류로, 텍스트 추측은 패턴에서 뺌. `check-round-trip` 4건 더해 9건, 변이 다섯 걸림. cpptools 가 어디에 떨어지는지는 안 잼(줄 머리 갈래는 그 짐작). `Alt+E` 는 파일만 떠서 고칠 게 없음.
+다음 할 것: 업무 PC 에서 `geo::` 꼴 호출에 `Alt+G` 를 눌러 맞는 namespace 만 뜨는지 보기. 메뉴 맨 아래 인덱스 줄이 `no compile_commands.json` 이면 그것부터. 그다음 `Alt+E` 를 CMake `project()` 범위로 좁히는 안 — 할지 정해야 함.
+막힌 것: 없음.
 
 **2026-10-08, 둘째** — 여기까지 됨: 0.6.2 배포. 태그 `v0.6.2` 를 `392cc3f`(Bump 커밋)에 찍었고 Release 22초·Marketplace 67초(대기 38초 포함) 만에 둘 다 성공, VSIX 109KB. CHANGELOG 에 테스트 내림·CMake 빌드 폴더 내림·속도·상한 5만 네 줄을 영어·한국어로 적음. **클라우드 컨테이너는 태그 푸시가 git 프록시에서 403** 이라 PC 에서 `git tag v0.6.2 392cc3f` 로 밀었음(본 체크아웃은 `tools/check-keys copy.js` 때문에 `release.js` 가 더럽다고 막고, `C:\dev\assist-release` 는 지운 채 등록만 남은 worktree 라 `worktree add` 가 실패했음 — `git worktree prune` 하면 풀림). 릴리스 노트에 이번에도 `Note …` 커밋 두 줄이 섞였음.
 다음 할 것: 마켓 0.6.2 로 갱신된 설치본에서 `Alt+E` 체감 속도 보기. 업무 PC 에서 추적 줄 `B under a CMake build folder` 로 a4f6 의 `.obj` 가 내려가는지 봄.
