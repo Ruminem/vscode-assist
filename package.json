@@ -25,6 +25,7 @@
     "check-enum-values": "node tools/check-enum-values.js",
     "check-fuzzy": "node tools/check-fuzzy.js",
     "check-text-guess": "node tools/check-text-guess.js",
+    "check-round-trip": "node tools/check-round-trip.js",
     "probe-clangd": "node tools/probe-clangd.js",
     "icon": "node tools/make-icon.js",
     "release": "node tools/release.js"

@@ -39,7 +39,12 @@ one place or none, they keep only the namespace or class of the symbol the
 providers landed on (or the cursor stands on) - when that cannot be told and a
 provider found anything at all, there are none - and they always sit below the
 answers the providers resolved. A name shared across namespaces used to put a
-dozen of them on top of the two rows that mattered.
+dozen of them on top of the two rows that mattered. While clangd is still
+indexing, the providers often answer nothing in time, and then the qualifier
+written at the cursor decides instead: on `geo::scale(2)` only names inside
+`geo` (or a namespace ending in `::geo`) are kept, so `ui::scale` no longer
+comes first. A qualifier that matches none of them - an alias, say - keeps them
+all.
 
 In C++, virtuals get rows of their own. An implementation answer is always an
 override there, so it is labelled **Override**. The other direction has no

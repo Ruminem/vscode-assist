@@ -2,7 +2,7 @@
 
 const vscode = require('vscode');
 const fs = require('fs');
-const { indexProgress, isComplete, describeProgress, textGuesses } = require('./text-guess');
+const { indexProgress, isComplete, describeProgress, textGuesses, callSite } = require('./text-guess');
 const { trace, since } = require('./trace');
 
 // Every one of these is served by whatever language server is already installed
@@ -249,6 +249,24 @@ function sameContainer(names, anchors, unknown) {
 }
 
 /**
+ * The qualifier written in front of the cursor's name - `geo` in `geo::scale(2)`
+ * - says which container is meant when no index entry does: while clangd is
+ * still indexing, the providers are cut at the deadline and the name search
+ * alone used to put ui::scale on top of a call to geo::scale. A qualifier that
+ * matches nothing (an alias, a using-declaration) keeps every name.
+ * @param {{container: string}[]} names
+ * @param {vscode.TextDocument} document @param {vscode.Position} pos
+ */
+function writtenContainer(names, document, pos) {
+  const range = document.getWordRangeAtPosition(pos);
+  if (!range) return names;
+  const { qualifier } = callSite(document.lineAt(pos.line).text, range.start.character, document.getText(range));
+  if (!qualifier) return names;
+  const kept = names.filter((hit) => hit.container === qualifier || hit.container.endsWith(`::${qualifier}`));
+  return kept.length ? kept : names;
+}
+
+/**
  * Ask everything at once rather than stopping at the first source that answers.
  * Stopping early cannot tell "the only place to go" apart from "the first of
  * several", and that difference is the whole feature: one answer is a jump,
@@ -316,7 +334,9 @@ async function gather(document, pos, options) {
   // A provider that found the symbol at all found the right one, and a name
   // from an unknown namespace can only be a different symbol that happens to
   // share it. Only when nothing was found do those names beat an empty answer.
-  sameContainer(named, anchors, seen.size > 0 ? [] : named).slice(0, MAX_BY_NAME).forEach(add);
+  sameContainer(named, anchors, seen.size > 0 ? [] : writtenContainer(named, document, pos))
+    .slice(0, MAX_BY_NAME)
+    .forEach(add);
 
   // The last resort, and the only one that reads files: text that looks like a
   // definition. Only while clangd's index is incomplete - once it is done, a
