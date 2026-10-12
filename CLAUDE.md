@@ -63,7 +63,7 @@ cpptools, rust-analyzer, tsserver) 몫임. 이 성질도 깨지 않음 — 깨�
 | `fixtures/enum-values/` | 열거형 모양을 모은 C++ 한 파일. 줄 끝 주석이 그 줄에 나와야 할 힌트임. **서버가 그 주석을 멤버의 문서 주석으로 읽어 hover 에 넣으므로** 주석이 `expect` 로 시작함 — 안 그러면 hover 에 힌트와 똑같은 글자가 떠서 서버가 쓴 것처럼 보임(실제로 한 번 속았음). compile DB 없이 clangd 기본 플래그로 파싱됨. VSIX에는 안 들어감 |
 | `l10n/bundle.l10n.ko.json` | 화면 문구의 한국어 번역. 키는 영어 원문 그대로임. VS Code 표시 언어가 한국어면 쓰이고, 아니면 원문이 나옴 |
 | `package.nls.json` / `package.nls.ko.json` | 명령 제목과 설정 설명의 영어 원문과 한국어. `package.json`에는 `%키%`만 있음 |
-| `NEXT.md` | 세션 인수인계 노트. VSIX에는 안 들어감 |
+| `NEXT.md` | 자리표 — 인수인계 노트는 notes 저장소 `progress/vscode-assist/NEXT.md` 로 옮김. VSIX에는 안 들어감 |
 
 명령: `assist.roundTrip` `assist.roundTrip.explain` `assist.nextFunction` `assist.previousFunction` `assist.searchSymbols` `assist.attachToProcess` `assist.reattachToProcess` `assist.saveNote` `assist.toggleTrace` `assist.searchFiles` `assist.dotArrow.deleteArrow`(키 전용, 팔레트에 없음)
 설정: `assist.keymap.enabled` `assist.roundTrip.providers` `assist.roundTrip.searchByName` `assist.roundTrip.pickWhenAmbiguous` `assist.roundTrip.textSearch` `assist.symbolSearch.fuzzy` `assist.dotArrow.enabled` `assist.enumValues.enabled`
