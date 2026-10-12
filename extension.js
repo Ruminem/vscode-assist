@@ -14,6 +14,7 @@ const vscode = require('vscode');
 // what is typed - exports activate(context) as well and puts its listener
 // there, so that nothing registers a listener merely by being required.
 const FEATURES = [
+  require('./features/cmake-projects'),
   require('./features/round-trip'),
   require('./features/function-step'),
   require('./features/symbol-search'),

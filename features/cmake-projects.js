@@ -10,6 +10,9 @@
 // vscode-cmake-tools-api package's (api.ts, checked on main 2026-10-12); this
 // file uses getApi, getProject and Project.codeModel, all of them in version 1.
 //
+// The scope chosen is one for both searches, Alt+E and Shift+Alt+S: kept in
+// workspaceState under the key the file search first stored it with.
+//
 // A project is its folder and everything under it, the folders of the projects
 // it adds included - so the top one, at the root CMakeLists.txt, is the whole
 // tree, and a project below it is a part of that. Target source lists were the
@@ -20,6 +23,10 @@ const vscode = require('vscode');
 const { trace } = require('./trace');
 
 const CMAKE_TOOLS = 'ms-vscode.cmake-tools';
+const SCOPE_KEY = 'assist.fileSearch.project';
+
+/** @type {vscode.Memento | undefined} */
+let store;
 
 /**
  * A path in one spelling: forward slashes, no slash at the end, and on Windows
@@ -120,4 +127,61 @@ async function cmakeProjects() {
   return projects;
 }
 
-module.exports = { cmakeProjects, within, projectsFrom, restore, normal };
+/**
+ * The projects of the last configure and the one the searches are narrowed to,
+ * if any. A remembered project the configure no longer has is forgotten here.
+ * @param {string} who what to call the search in the trace
+ */
+async function currentScope(who) {
+  const projects = await cmakeProjects();
+  const stored = store ? store.get(SCOPE_KEY) : undefined;
+  const scope = restore(stored, projects, process.platform === 'win32');
+  if (stored && !scope) {
+    trace(`${who}: CMake project ${stored.name} is gone from the last configure; searching everything`);
+    if (store) store.update(SCOPE_KEY, undefined);
+  }
+  return { projects, scope };
+}
+
+/**
+ * The project list behind a search's button: the whole workspace first, then
+ * each project with the CMakeLists.txt that declared it. What is chosen is
+ * remembered. Resolves to false when it was closed without a choice.
+ * @param {{name: string, dir: string}[]} projects
+ * @param {{name: string, dir: string} | undefined} scope
+ * @param {string} who
+ */
+async function chooseScope(projects, scope, who) {
+  const items = [
+    { label: `$(${scope ? 'files' : 'check'}) ${vscode.l10n.t('Whole workspace')}`, project: null },
+    ...projects.map((project) => ({
+      label: `$(${project === scope ? 'check' : 'project'}) ${project.name}`,
+      description: vscode.workspace.asRelativePath(`${project.dir.replace(/[\\/]+$/, '')}/CMakeLists.txt`, true),
+      project,
+    })),
+  ];
+  const picked = await vscode.window.showQuickPick(items, {
+    placeHolder: vscode.l10n.t('Choose the CMake project to search in'),
+    matchOnDescription: true,
+  });
+  if (!picked) return false;
+  const chosen = picked.project;
+  if (store) await store.update(SCOPE_KEY, chosen ? { name: chosen.name, dir: chosen.dir } : undefined);
+  trace(`${who}: scope set to ${chosen ? `CMake project ${chosen.name}` : 'the workspace'}`);
+  return true;
+}
+
+/** The button a search shows when there are projects to choose from. */
+function scopeButton(scope) {
+  return {
+    iconPath: new vscode.ThemeIcon(scope ? 'filter-filled' : 'filter'),
+    tooltip: scope ? vscode.l10n.t('CMake project: {0}', scope.name) : vscode.l10n.t('Search one CMake project'),
+  };
+}
+
+/** @param {vscode.ExtensionContext} context */
+function activate(context) {
+  store = context.workspaceState;
+}
+
+module.exports = { activate, cmakeProjects, currentScope, chooseScope, scopeButton, within, projectsFrom, restore, normal };

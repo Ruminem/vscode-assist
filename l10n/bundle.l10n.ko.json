@@ -24,7 +24,7 @@
   "Search files in CMake project {0}": "CMake 프로젝트 {0}에서 파일 검색",
   "CMake project: {0}": "CMake 프로젝트: {0}",
   "Search one CMake project": "CMake 프로젝트 하나에서 검색",
-  "All files": "모든 파일",
+  "Whole workspace": "작업 영역 전체",
   "Choose the CMake project to search in": "검색할 CMake 프로젝트 선택",
   "Search symbols in the workspace": "작업 영역에서 기호 검색",
   "Attaching the debugger is only available on Windows for now.": "디버거 연결은 현재 Windows에서만 사용할 수 있습니다.",
@@ -48,5 +48,7 @@
   "Text": "텍스트",
   "Save the trace": "추적 기록 저장",
   "Trace saved to {0}": "추적 기록을 {0}에 저장함",
-  "Could not save the trace: {0}": "추적 기록을 저장하지 못했습니다: {0}"
+  "Could not save the trace: {0}": "추적 기록을 저장하지 못했습니다: {0}",
+  "Search symbols in CMake project {0}": "CMake 프로젝트 {0}에서 기호 검색",
+  "The language server stopped at {0} symbols, so some in CMake project {1} may be missing.": "언어 서버가 기호 {0}개에서 끊어서 CMake 프로젝트 {1}의 기호 일부가 빠졌을 수 있습니다."
 }

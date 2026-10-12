@@ -8,7 +8,7 @@ Navigation shortcuts VS Code does not ship, bound to keys VS Code does not use.
 | --- | --- |
 | `Alt+G` / `Alt+D` | Go to the definition. Press it on the definition and it goes back to the declaration. |
 | `Ctrl+Shift+↓` / `Ctrl+Shift+↑` | Jump to the next / previous function in this file. |
-| `Shift+Alt+S` | Search symbols in the workspace, with fuzzy matching you can switch off. |
+| `Shift+Alt+S` | Search symbols in the workspace, or in one CMake project, with fuzzy matching you can switch off. |
 | `Alt+E` | Search files in the workspace, or in one CMake project, recently opened ones first, and find them through a Korean keyboard too. |
 | `Ctrl+Alt+P` | Attach the debugger to a running process. |
 | `Shift+Alt+P` | Attach again to the process attached last. |
@@ -149,6 +149,18 @@ clangd returns at most 100 symbols per request unless it is started with
 `--limit-results=0`. In a large project, a name you only remember the middle of
 can fall outside that list. The same limit applies to code completion, which is
 why it is not raised for you.
+
+**It can be narrowed to one CMake project**, the same one the file search is
+narrowed to ([Searching files](#searching-files)): a second button, beside the
+fuzzy one, lists the projects, and the query you had typed stays. There is a
+catch the file search does not have. The file search lists the files itself;
+here the server picks the symbols, and a workspace symbol request has no
+folder to send, so the project is applied to what the server returned - after
+the 100 above. In a large tree, those 100 can all belong to other projects
+while yours has the symbol. When an answer reaches 100 and a project is
+chosen, a last row says the server stopped there and some of the project's
+symbols may be missing, so an empty list is never a silent one;
+`--limit-results=0` is the fix.
 
 ## Attaching the debugger
 
@@ -353,7 +365,7 @@ through the whole list once, at `q`.
 
 **It can be narrowed to one CMake project.** When CMake Tools has configured
 the folder, a filter button sits at the top right of the search box; it lists
-`All files` and every `project()` that configure went through, each with the
+`Whole workspace` and every `project()` that configure went through, each with the
 `CMakeLists.txt` that declared it. A project is its folder and everything
 under it, the folders of the projects it adds included - so the top project, at
 the root `CMakeLists.txt`, is the whole tree, and a project below it is that
@@ -365,7 +377,9 @@ neither is a project in it. Target source lists were the other way to draw the
 line, and were left - a target lists sources from other folders and leaves out
 most headers. The choice is kept per workspace; a project a reconfigure drops
 or moves is forgotten, and the search goes back to the whole workspace. Without
-CMake Tools, or before its first configure, there is no button. CMake Tools is
+CMake Tools, or before its first configure, there is no button. The choice is
+shared with `Shift+Alt+S` ([Searching symbols](#searching-symbols)): narrowing
+one narrows the other. CMake Tools is
 not started by this extension, it starts itself in a folder with a
 `CMakeLists.txt`.
 

@@ -4,6 +4,7 @@
 const vscode = require('vscode');
 const { trace, since } = require('./trace');
 const { fuzzyMatch, exactMatch, mentionsTest } = require('./fuzzy');
+const { currentScope, chooseScope, scopeButton, within } = require('./cmake-projects');
 
 // Indexed by vscode.SymbolKind, which is a plain 0..25 enum.
 const KIND_ICONS = [
@@ -18,6 +19,11 @@ const KIND_ICONS = [
 // A list longer than this is not being read, it is being scrolled.
 const MAX_ITEMS = 200;
 
+// clangd's --limit-results default. An answer this long was most likely cut by
+// the server, and narrowing to a CMake project happens after the cut - the
+// request has no folder to send - so the project's own symbols may be missing.
+const SERVER_CAP = 100;
+
 /**
  * Servers disagree on what a symbol's name is. clangd answers "totalArea";
  * cpptools answers "totalArea(const Shape **, int)" and adds a localised
@@ -30,17 +36,22 @@ function bareName(name) {
 }
 
 
-/** @param {string} query */
+/**
+ * The server's answer, and how many it gave before namespaces were dropped -
+ * the count that tells whether it was cut.
+ * @param {string} query
+ */
 async function ask(query) {
   try {
-    const found = await vscode.commands.executeCommand('vscode.executeWorkspaceSymbolProvider', query);
+    const found = (await vscode.commands.executeCommand('vscode.executeWorkspaceSymbolProvider', query)) || [];
     // A namespace is a scope, not a place to go - opening one lands on the
     // first `namespace geo {` of many. clangd lists them, aliases included.
-    return (found || []).filter(
+    const symbols = found.filter(
       (symbol) => symbol && symbol.location && symbol.kind !== vscode.SymbolKind.Namespace,
     );
+    return { symbols, total: found.length };
   } catch {
-    return [];
+    return { symbols: [], total: 0 };
   }
 }
 
@@ -89,8 +100,16 @@ function fuzzyButton(on) {
   };
 }
 
-async function searchSymbols() {
-  let fuzzy = vscode.workspace.getConfiguration('assist.symbolSearch').get('fuzzy', true);
+const searchSymbols = () => open();
+
+/**
+ * @param {{value: string, fuzzy: boolean, everything: any[] | null, asked: Map<string, any>}} [again]
+ * Set when the picker comes back from the project list: the query and the mode
+ * to put back, and the server's answers so far, which do not depend on the
+ * scope - it is applied to them, not asked of the server.
+ */
+async function open(again) {
+  let fuzzy = again ? again.fuzzy : vscode.workspace.getConfiguration('assist.symbolSearch').get('fuzzy', true);
 
   const picker = vscode.window.createQuickPick();
   picker.placeholder = vscode.l10n.t('Search symbols in the workspace');
@@ -104,7 +123,24 @@ async function searchSymbols() {
   } catch {
     // Left as it was.
   }
-  picker.buttons = [fuzzyButton(fuzzy)];
+  let fuzzyButtonNow = fuzzyButton(fuzzy);
+  picker.buttons = [fuzzyButtonNow];
+
+  // Read once per opening, in the background: CMake Tools answers in
+  // milliseconds, and the first query waits for it rather than the picker.
+  /** @type {{name: string, dir: string} | undefined} */
+  let scope;
+  let projectButton;
+  const windows = process.platform === 'win32';
+  const scoping = currentScope('symbol search').then((found) => {
+    scope = found.scope;
+    if (scope) picker.placeholder = vscode.l10n.t('Search symbols in CMake project {0}', scope.name);
+    if (found.projects.length) {
+      projectButton = scopeButton(scope);
+      picker.buttons = [fuzzyButtonNow, projectButton];
+    }
+    return found.projects;
+  });
 
   // Everything the server will hand over for an empty query, fetched once. A
   // fuzzy match is chosen from this, since asking the server with the query
@@ -114,20 +150,20 @@ async function searchSymbols() {
   // It is not waited for: on a large project it is the slowest answer of all,
   // and the query's own answer is worth showing while it is on its way. Nor is
   // it asked for until fuzzy matching is on, the one mode that reads it.
-  let everything = null;
+  let everything = again ? again.everything : null;
   let pending = false;
   let generation = 0;
   let timer;
-  let open = true;
+  let shown = true;
   const list = () => {
     if (everything || pending) return;
     pending = true;
     const start = Date.now();
-    ask('').then((found) => {
-      trace(`symbol search: full list ${found.length} symbols in ${since(start)}`);
+    ask('').then(({ symbols }) => {
+      trace(`symbol search: full list ${symbols.length} symbols in ${since(start)}`);
       pending = false;
-      if (!open) return;
-      everything = found.map(entry);
+      if (!shown) return;
+      everything = symbols.map(entry);
       narrowed = null;
       if (fuzzy && picker.value.trim()) refresh();
       else picker.busy = false;
@@ -137,13 +173,13 @@ async function searchSymbols() {
 
   // Typing back and forth asks the same queries again; the answer does not change
   // while the search box is open.
-  const asked = new Map();
+  const asked = again ? again.asked : new Map();
   const askOnce = (query) => {
     if (asked.has(query)) return asked.get(query);
     const start = Date.now();
-    const answer = ask(query).then((found) => {
-      trace(`symbol search: server answered "${query}" with ${found.length} in ${since(start)}`);
-      return found.map(entry);
+    const answer = ask(query).then(({ symbols, total }) => {
+      trace(`symbol search: server answered "${query}" with ${total} in ${since(start)}`);
+      return { entries: symbols.map(entry), total };
     });
     asked.set(query, answer);
     return answer;
@@ -165,7 +201,8 @@ async function searchSymbols() {
       }
 
       picker.busy = true;
-      const answer = await askOnce(query);
+      await scoping;
+      const { entries: answer, total } = await askOnce(query);
       if (mine !== generation) return;
       picker.busy = fuzzy && pending;
 
@@ -178,6 +215,7 @@ async function searchSymbols() {
       for (const item of [pool, answer].flat()) {
         if (seen.has(item.key)) continue;
         seen.add(item.key);
+        if (scope && !within(item.symbol.location.uri.fsPath, scope.dir, windows)) continue;
         const found = match(query, item.name);
         if (found) ranked.push({ ...found, ...item });
       }
@@ -195,7 +233,7 @@ async function searchSymbols() {
       // The highlighted letters are the widget's own, a prefix, word starts or a
       // run - `ta` lights the t and the A of totalArea, `ce` lights nothing in
       // Circle. file-search.js says why nothing better is reachable.
-      picker.items = ranked.slice(0, MAX_ITEMS).map(({ name, symbol }) => ({
+      const rows = ranked.slice(0, MAX_ITEMS).map(({ name, symbol }) => ({
         label: `$(${KIND_ICONS[symbol.kind] || 'symbol-misc'}) ${name}`,
         description: [
           symbol.containerName,
@@ -208,31 +246,58 @@ async function searchSymbols() {
         alwaysShow: true,
         loc: symbol.location,
       }));
+      // Never a silent gap: a cut answer narrowed to one project can come back
+      // short, or empty, while the project has the symbol. Not a symbol -
+      // choosing it leaves the picker open (onDidAccept).
+      if (scope && total >= SERVER_CAP) {
+        trace(`symbol search: "${query}" answer of ${total} looks cut; told under CMake project ${scope.name}`);
+        rows.push({
+          label: `$(warning) ${vscode.l10n.t('The language server stopped at {0} symbols, so some in CMake project {1} may be missing.', total, scope.name)}`,
+          alwaysShow: true,
+        });
+      }
+      picker.items = rows;
     }, 120);
   };
 
   picker.onDidChangeValue(refresh);
-  picker.onDidTriggerButton(() => {
+  picker.onDidTriggerButton(async (button) => {
+    if (projectButton && button === projectButton) {
+      // The project list replaces this picker, which comes back with what it had.
+      const value = picker.value;
+      picker.hide();
+      await chooseScope(await scoping, scope, 'symbol search');
+      open({ value, fuzzy, everything, asked });
+      return;
+    }
     fuzzy = !fuzzy;
-    picker.buttons = [fuzzyButton(fuzzy)];
+    fuzzyButtonNow = fuzzyButton(fuzzy);
+    picker.buttons = projectButton ? [fuzzyButtonNow, projectButton] : [fuzzyButtonNow];
     if (fuzzy) list();
     refresh();
   });
   picker.onDidAccept(async () => {
     const chosen = picker.selectedItems[0];
+    if (chosen && !chosen.loc) return;
     picker.hide();
     if (chosen) await reveal(chosen.loc);
   });
   picker.onDidHide(() => {
-    open = false;
+    shown = false;
     clearTimeout(timer);
     picker.dispose();
   });
   picker.show();
+  if (again) {
+    picker.value = again.value;
+    if (again.value.trim()) refresh();
+  }
 }
 
 module.exports = {
   commands: {
     'assist.searchSymbols': searchSymbols,
   },
+  // For tools/check-cmake-projects.js, which opens it on a stand-in picker.
+  open,
 };

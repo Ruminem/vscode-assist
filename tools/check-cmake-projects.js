@@ -182,7 +182,9 @@ async function picking() {
     fs: { stat: () => Promise.resolve({}) },
     asRelativePath: (at) => (typeof at === 'string' ? at : at.fsPath).replace(/^\/r\//, ''),
   };
-  activate({ workspaceState: { get: (key, fallback) => (key in store ? store[key] : fallback), update: async (key, value) => (store[key] = value) }, subscriptions: [] });
+  const context = { workspaceState: { get: (key, fallback) => (key in store ? store[key] : fallback), update: async (key, value) => (store[key] = value) }, subscriptions: [] };
+  require(path.join(ROOT, 'features', 'cmake-projects.js')).activate(context);
+  activate(context);
 
   const listedFiles = listed.map((fsPath) => prepare(fsPath.replace(/^\/r\//, ''), uri(fsPath)));
   await open({ value: '', found: { files: listedFiles, cut: false } });
@@ -222,6 +224,86 @@ async function picking() {
   vscode.extensions = { getExtension: () => undefined };
   await open({ value: '', found: { files: listedFiles, cut: false } });
   check('without projects there is no button', pickers[4].buttons, []);
+
+  // --- the symbol search, sharing the scope ------------------------------------
+  //
+  // The same remembered project narrows Shift+Alt+S. Its picker has the fuzzy
+  // button first; the project button sits beside it and must not be mistaken
+  // for it. The server answers are made up: one symbol per file of the list.
+  const symbols = require(path.join(ROOT, 'features', 'symbol-search.js'));
+  vscode.extensions = { getExtension: () => extension(true, async () => ({ codeModel: model })) };
+  let answered = listed.map((fsPath) => ({
+    name: `c_${path.basename(fsPath, '.c').replace('.', '_')}`,
+    kind: 11,
+    location: { uri: uri(fsPath), range: { start: { line: 0 } } },
+  }));
+  const asks = [];
+  Object.assign(vscode, {
+    SymbolKind: { Namespace: 2 },
+    commands: {
+      executeCommand: async (command, query) => {
+        asks.push(query);
+        return answered;
+      },
+    },
+  });
+  vscode.workspace.getConfiguration = () => ({ get: (key, fallback) => fallback });
+  const settle = () => new Promise((resolve) => setTimeout(resolve, 200));
+  const symbolRows = (picker) => picker.items.filter((item) => item.loc).map((item) => item.loc.uri.fsPath);
+  const warned = (picker) => picker.items.some((item) => !item.loc);
+
+  store['assist.fileSearch.project'] = { name: 'Core', dir: '/r/src/core' };
+  const before = pickers.length;
+  await symbols.open();
+  await settle();
+  const sym = pickers[before];
+  check('the symbol search names the project too', sym.placeholder, 'Search symbols in CMake project Core');
+  check('beside the fuzzy button', sym.buttons.map((b) => b.iconPath.id), ['filter-filled', 'filter-filled']);
+  sym.value = 'c';
+  sym.fire.value();
+  await settle();
+  check('a query finds only its symbols', symbolRows(sym).sort(), ['/r/src/core/core.c', '/r/src/core/core.h']);
+  check('an answer under the cap is not warned about', warned(sym), false);
+
+  // The fuzzy button still toggles fuzzy and leaves the scope alone.
+  sym.fire.button(sym.buttons[0]);
+  await settle();
+  check('the fuzzy button is still the fuzzy button', [sym.buttons[0].iconPath.id, pickers.length - before], ['filter', 1]);
+  check('and the scope holds', symbolRows(sym).sort(), ['/r/src/core/core.c', '/r/src/core/core.h']);
+
+  // The project button: Net, and the query back.
+  chosen = net;
+  const asksBefore = asks.length;
+  sym.fire.button(sym.buttons[1]);
+  await settle();
+  const sym2 = pickers[before + 1];
+  check('the project button changes the shared scope', store['assist.fileSearch.project'], { name: 'Net', dir: '/r/libs/net' });
+  check('the symbol picker comes back with the query', sym2 && sym2.value, 'c');
+  check('and the new scope', sym2 && symbolRows(sym2), ['/r/libs/net/net.c']);
+  check('without asking the server again', asks.length - asksBefore, 0);
+
+  // A cut answer: a hundred symbols, none of them in the project.
+  answered = Array.from({ length: 100 }, (_, i) => ({ name: `cut${i}`, kind: 11, location: { uri: uri(`/r/main${i}.c`), range: { start: { line: 0 } } } }));
+  sym2.value = 'cu';
+  sym2.fire.value();
+  await settle();
+  check('a cut answer narrowed to nothing says so', [symbolRows(sym2).length, warned(sym2)], [0, true]);
+  sym2.selectedItems = [sym2.items[sym2.items.length - 1]];
+  let hidden = false;
+  const hide = sym2.hide;
+  sym2.hide = () => {
+    hidden = true;
+    hide();
+  };
+  sym2.fire.accept();
+  check('and choosing that row leaves the picker open', hidden, false);
+
+  // The same cut answer with no project chosen: nothing went missing here.
+  chosen = null;
+  sym2.fire.button(sym2.buttons[1]);
+  await settle();
+  const sym3 = pickers[before + 2];
+  check('the whole workspace warns of nothing', [symbolRows(sym3).length, warned(sym3)], [100, false]);
 }
 
 asking()

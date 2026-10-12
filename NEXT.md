@@ -3,6 +3,10 @@
 **끝났다의 정의** — `Alt+G` 한 번으로 선언부↔정의부를 왕복할 수 있고, 내 C++
 프로젝트에서 하루 써봐도 안 거슬린다.
 
+**2026-10-12, 셋째** — 여기까지 됨: `Shift+Alt+S` 에도 같은 CMake 프로젝트 필터 버튼(배포 전). fuzzy 버튼 옆 둘째 버튼이고, 범위는 `Alt+E` 와 같이 씀(한쪽에서 고르면 다른 쪽도). 저장·되살리기·고르는 목록·버튼을 `cmake-projects.js` 로 옮겨 두 검색이 같이 부름 — 그래서 `cmake-projects.js` 가 `activate` 를 갖고 `extension.js` 목록에 들어감. 고르는 목록의 첫 줄은 `All files` → `Whole workspace`(`작업 영역 전체`). **심볼은 서버가 고른 것에 거르는 것이라** clangd 100개 상한에서 잘린 뒤라는 함정이 있음 — 범위가 있고 질의 답이 100개에 닿으면 맨 아래에 잘렸을 수 있다는 행을 붙임. `check-cmake-projects` 13건 더해 51건, 변이 여덟 걸림. 진짜 서버·CMake Tools 로는 안 돌려 봄.
+다음 할 것: 업무 PC 에서 `Shift+Alt+S` 필터로 좁혀 보기. 경고 행이 자주 뜨면 clangd 에 `--limit-results=0` 을 줄지 정함. `Alt+E` 필터·`Alt+G` `geo::` 확인은 아래 그대로 남음.
+막힌 것: 없음.
+
 **2026-10-12, 둘째** — 여기까지 됨: `Alt+E` 를 CMake `project()` 하나로 좁히는 필터 버튼(배포 전). 사용자 요구 셋을 따름: 폴더 기준, 최상위 `CMakeLists.txt`(root)까지 — root project 는 트리 전체이고 하위 project 는 자기 폴더 아래, 지금 configure 로 활성인 project 만. 그래서 목록은 CMake Tools 공개 API 의 `codeModel`(활성 preset/kit 의 마지막 configure)에서 받고 CMakeLists.txt 는 안 읽음. CMake Tools 가 없거나 configure 전이면 버튼이 없음. 새 `features/cmake-projects.js`, `tools/check-cmake-projects.js` 38건(가짜 QuickPick 에 버튼 → 다른 project → 같은 질의로 돌아오는 흐름 포함), 변이 열다섯 걸림. 진짜 CMake Tools 로는 안 돌려 봄 — 리눅스 컨테이너에 VS Code 가 없음.
 다음 할 것: 업무 PC 에서 `Alt+E` 필터 버튼 눌러 보기. 버튼이 안 뜨면 `assist.toggleTrace` 를 켜고 `cmake projects:` 줄(안 깔림·안 뜸·configure 전)을 봄. 업무 PC 가 CMake Tools 없이 configure 하면 이 기능은 안 닿음 — 그때 reply 파일을 직접 읽을지 다시 정함. `Alt+G` `geo::` 확인은 아래 그대로 남음.
 막힌 것: 없음.

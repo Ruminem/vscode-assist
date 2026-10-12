@@ -7,7 +7,7 @@ const { trace, since } = require('./trace');
 const { pickerAnchors, wordStarts, inOrder, fit, mentionsTest } = require('./fuzzy');
 const { readings } = require('./hangul');
 const { ripgrep } = require('./text-guess');
-const { cmakeProjects, within, restore } = require('./cmake-projects');
+const { currentScope, chooseScope, scopeButton, within } = require('./cmake-projects');
 
 // A list longer than this is not being read, it is being scrolled.
 const MAX_ITEMS = 200;
@@ -17,7 +17,6 @@ const MAX_ITEMS = 200;
 const MAX_RECENT = 50;
 const RECENT_KEY = 'assist.fileSearch.recent';
 /** The CMake project the search was last narrowed to, `{name, dir}`; unset for the whole workspace. */
-const SCOPE_KEY = 'assist.fileSearch.project';
 
 // The ordering follows Quick Open's (src/vs/base/common/fuzzyScorer.ts and
 // src/vs/workbench/contrib/search/browser/anythingQuickAccess.ts in
@@ -427,29 +426,6 @@ function row(file, section, rank) {
 }
 
 /**
- * The project list behind the picker's button: the whole workspace first, then
- * each project with the CMakeLists.txt that declared it. Resolves to the
- * project, to null for the whole workspace, or to undefined when closed.
- * @param {{name: string, dir: string}[]} projects
- * @param {{name: string, dir: string} | undefined} scope
- */
-async function chooseProject(projects, scope) {
-  const items = [
-    { label: `$(${scope ? 'files' : 'check'}) ${vscode.l10n.t('All files')}`, project: null },
-    ...projects.map((project) => ({
-      label: `$(${project === scope ? 'check' : 'project'}) ${project.name}`,
-      description: vscode.workspace.asRelativePath(`${project.dir.replace(/[\\/]+$/, '')}/CMakeLists.txt`, true),
-      project,
-    })),
-  ];
-  const chosen = await vscode.window.showQuickPick(items, {
-    placeHolder: vscode.l10n.t('Choose the CMake project to search in'),
-    matchOnDescription: true,
-  });
-  return chosen ? chosen.project : undefined;
-}
-
-/**
  * Only what a scope takes in. A file is in a project when it is under the
  * folder of that project's CMakeLists.txt (cmake-projects.js).
  * @template {{uri: vscode.Uri}} T
@@ -510,13 +486,7 @@ async function open(again) {
   // Read once per opening: the tabs, the history and the configure do not
   // change while the picker is up. Each takes milliseconds, well before the
   // file list has loaded.
-  const [opened, projects] = await Promise.all([recentFiles(), cmakeProjects()]);
-  const stored = store ? store.get(SCOPE_KEY) : undefined;
-  const scope = restore(stored, projects, process.platform === 'win32');
-  if (stored && !scope) {
-    trace(`file search: CMake project ${stored.name} is gone from the last configure; searching everything`);
-    if (store) store.update(SCOPE_KEY, undefined);
-  }
+  const [opened, { projects, scope }] = await Promise.all([recentFiles(), currentScope('file search')]);
   if (scope) picker.placeholder = vscode.l10n.t('Search files in CMake project {0}', scope.name);
   const recents = scoped(opened, scope).map(({ uri, path }) => prepare(path, uri));
 
@@ -533,21 +503,12 @@ async function open(again) {
   // this picker, and this picker comes back with the query it had.
   let switching = false;
   if (projects.length) {
-    picker.buttons = [
-      {
-        iconPath: new vscode.ThemeIcon(scope ? 'filter-filled' : 'filter'),
-        tooltip: scope ? vscode.l10n.t('CMake project: {0}', scope.name) : vscode.l10n.t('Search one CMake project'),
-      },
-    ];
+    picker.buttons = [scopeButton(scope)];
     picker.onDidTriggerButton(async () => {
       switching = true;
       const value = picker.value;
       picker.hide();
-      const chosen = await chooseProject(projects, scope);
-      if (chosen !== undefined && store) {
-        await store.update(SCOPE_KEY, chosen ? { name: chosen.name, dir: chosen.dir } : undefined);
-        trace(`file search: scope set to ${chosen ? `CMake project ${chosen.name}` : 'the workspace'}`);
-      }
+      await chooseScope(projects, scope, 'file search');
       await loading;
       open({ value, found: { files: all, cut } });
     });
