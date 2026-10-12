@@ -1,5 +1,19 @@
 # Changelog
 
+## 0.7.0 — 2026-10-12
+
+- `Alt+E` and `Shift+Alt+S` can search one CMake project instead of the whole workspace. A filter button in the top right corner of the picker lists the projects from the configure CMake Tools last ran, and choosing one keeps the files or symbols under that project's folder, its subprojects included. The choice is shared by both pickers and remembered per workspace. The button only shows when CMake Tools is running and has configured the project.
+- When `Shift+Alt+S` is narrowed to a project and the language server stopped at its result limit (clangd's default is 100), a row at the bottom says some of the project's symbols may be missing.
+- `Alt+G` and `Shift+Alt+S` never offer a namespace as a place to go.
+- While clangd is still indexing, `Alt+G` on `geo::scale(2)` no longer puts `ui::scale` at the top - it keeps only the `scale` in the namespace written at the call.
+
+**한국어**
+
+- `Alt+E` 와 `Shift+Alt+S` 가 작업 영역 전체 대신 CMake 프로젝트 하나 안에서만 찾을 수 있음. 창 오른쪽 위 필터 버튼이 CMake Tools 가 마지막으로 configure 한 프로젝트 목록을 띄우고, 하나를 고르면 그 프로젝트 폴더 아래 — 하위 프로젝트 포함 — 의 파일이나 기호만 남음. 고른 것은 두 창이 같이 쓰고 작업 영역마다 기억함. 버튼은 CMake Tools 가 떠 있고 configure 를 마쳤을 때만 보임.
+- `Shift+Alt+S` 를 프로젝트로 좁혔는데 언어 서버가 결과 상한(clangd 기본 100개)에서 끊었으면, 프로젝트의 기호 일부가 빠졌을 수 있다는 행이 맨 아래에 뜸.
+- `Alt+G` 와 `Shift+Alt+S` 가 namespace 를 갈 곳으로 내놓지 않음.
+- clangd 가 아직 인덱싱 중일 때 `geo::scale(2)` 에서 `Alt+G` 를 눌러도 `ui::scale` 이 맨 위에 안 옴 — 호출에 적힌 namespace 의 `scale` 만 남김.
+
 ## 0.6.2 — 2026-10-08
 
 - Test files in `Alt+E` and test symbols in `Shift+Alt+S` sink to the bottom of the results unless your query has `test` in it. They are lowered, not hidden, so typing `tes` still finds them. A word has to start with `test` - `tests/`, `foo_test`, `FooTest` - so `latest` and `contest` stay where they were.
